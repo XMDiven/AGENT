@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# 数据文件
+data/vector_db/
+qdrant_storage/
+data/raw/*
+!data/raw/.gitkeep
+
+# 环境变量
+.env
+
+# IDE
+.idea/
+.vscode/
+.claude/
+*.swp
+*.swo
+
+# 测试
+.pytest_cache/
+.coverage

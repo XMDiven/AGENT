@@ -1,0 +1,1 @@
+指导我写代码的时候请时刻参考resume_alignment.md的内容

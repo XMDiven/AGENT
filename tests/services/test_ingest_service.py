@@ -1,11 +1,16 @@
+from pathlib import Path
 from unittest.mock import Mock
 
+import pytest
 from langchain_core.documents import Document
 
+from src.services import ingest_service
 from src.services.ingest_service import ingest_markdown_file
 
 
-def test_ingest_markdown_file_returns_counts(monkeypatch) -> None:
+
+
+def test_ingest_markdown_file_returns_counts(monkeypatch : pytest.MonkeyPatch) -> None:
     documents = [
         Document(
             page_content="# LangChain\nLangChain is a framework.",
@@ -57,3 +62,129 @@ def test_ingest_markdown_file_returns_counts(monkeypatch) -> None:
     mock_load_markdown.assert_called_once_with("data/raw/langchain-docs.md")
     mock_chunk_markdown.assert_called_once_with(documents)
     mock_ingest_chunks.assert_called_once_with(chunks)
+
+def test_ingest_pdf_file_returns_counts(monkeypatch : pytest.MonkeyPatch) -> None:
+    documents = [Document(
+        page_content="RAG systems combine retrieval and generation.",
+        metadata={
+            "source": "data/raw/rag-paper.pdf",
+            "page": 1,
+        },
+    )
+]
+    chunks = [
+        Document(
+            page_content="RAG systems combine retrieval and generation.",
+            metadata={
+                "source": "data/raw/rag-paper.pdf",
+                "page": 1,
+                "section_path": "page_1",
+            },
+        )
+    ]
+
+    mock_load_pdf = Mock(return_value=documents)
+    mock_chunk_pdf = Mock(return_value=chunks)
+    mock_ingest_chunks = Mock(return_value=["chunk-1"])
+
+    monkeypatch.setattr(
+        ingest_service,
+        "load_pdf",
+        mock_load_pdf,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        ingest_service,
+        "chunk_pdf",
+        mock_chunk_pdf,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        ingest_service,
+        "ingest_chunks",
+        mock_ingest_chunks,
+    )
+
+    result = ingest_service.ingest_pdf_file("data/raw/rag-paper.pdf")
+
+    assert result == {
+        "path": "data/raw/rag-paper.pdf",
+        "document_count": 1,
+        "chunk_count": 1,
+        "stored_count": 1,
+    }
+    mock_load_pdf.assert_called_once_with("data/raw/rag-paper.pdf")
+    mock_chunk_pdf.assert_called_once_with(documents)
+    mock_ingest_chunks.assert_called_once_with(chunks)
+
+
+def test_ingest_pdf_file_uses_real_loader_and_chunker(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "sample.pdf"
+    pdf_path.write_bytes(
+        b"""%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 144] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>
+endobj
+4 0 obj
+<< /Length 44 >>
+stream
+BT
+/F1 24 Tf
+72 72 Td
+(Hello PDF) Tj
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f
+0000000010 00000 n
+0000000062 00000 n
+0000000114 00000 n
+0000000241 00000 n
+0000000335 00000 n
+trailer
+<< /Root 1 0 R /Size 6 >>
+startxref
+405
+%%EOF
+"""
+    )
+
+    captured_chunks: list[Document] = []
+
+    def fake_ingest_chunks(chunks: list[Document]) -> list[str]:
+        captured_chunks.extend(chunks)
+        return ["chunk-1" for _ in chunks]
+
+    monkeypatch.setattr(
+        ingest_service,
+        "ingest_chunks",
+        fake_ingest_chunks,
+    )
+
+    result = ingest_service.ingest_pdf_file(str(pdf_path))
+
+    assert result == {
+        "path": str(pdf_path),
+        "document_count": 1,
+        "chunk_count": 1,
+        "stored_count": 1,
+    }
+    assert "Hello PDF" in captured_chunks[0].page_content
+    assert captured_chunks[0].metadata["source"] == str(pdf_path)
+    assert captured_chunks[0].metadata["page"] == 0
+    assert captured_chunks[0].metadata["doc_type"] == "pdf"
+    assert captured_chunks[0].metadata["section_path"] == "page_1"

@@ -1,3 +1,4 @@
+import json
 import os
 import uuid
 
@@ -26,18 +27,39 @@ def get_vector_store() -> QdrantVectorStore:
     )
 
 
+def build_chunk_id(document : Document) -> str:
+    payload = {
+        "source": str(document.metadata.get("source", "")),
+        "section_path": str(document.metadata.get("section_path", "")),
+        "page": str(document.metadata.get("page", "")),
+        "content": document.page_content,
+    }
 
-
+    serialized_payload = json.dumps(
+        payload,
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+    return str(uuid.uuid5(uuid.NAMESPACE_DNS, serialized_payload))
 
 def ingest_chunks(chunks: list[Document]) -> list[str]:
     if not chunks:
         return []
 
     vector_store = get_vector_store()
-    ids = [str(uuid.uuid4()) for _ in chunks]
+
+    unique_chunks_by_id: dict[str, Document] = {}
+
+    for chunk in chunks:
+        chunk_id = build_chunk_id(chunk)
+        unique_chunks_by_id.setdefault(chunk_id, chunk)
+
+    ids = list(unique_chunks_by_id.keys())
+    chunks = list(unique_chunks_by_id.values())
 
     vector_store.add_documents(
         documents=chunks,
         ids=ids,
     )
+
     return ids

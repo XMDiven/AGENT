@@ -1,12 +1,21 @@
 from pathlib import Path
 
+import pytest
+
+from config import config
 from src.ingestion.loaders.pdf_loader import load_pdf
 
 
 def test_load_pdf_returns_documents_with_source_and_page(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    pdf_path = tmp_path / "sample.pdf"
+    project_root = tmp_path
+    raw_dir = project_root / "data" / "raw"
+    raw_dir.mkdir(parents=True)
+    pdf_path = raw_dir / "sample.pdf"
+
+    monkeypatch.setattr(config, "PROJECT_ROOT", project_root)
     pdf_path.write_bytes(
         b"""%PDF-1.4
 1 0 obj
@@ -50,5 +59,5 @@ startxref
 
     assert len(documents) == 1
     assert "Hello PDF" in documents[0].page_content
-    assert documents[0].metadata["source"] == str(pdf_path)
+    assert documents[0].metadata["source"] == "data/raw/sample.pdf"
     assert documents[0].metadata["page"] == 0

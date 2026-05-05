@@ -13,5 +13,32 @@
     "id": "langchain_usage",
     "question": "What is LangChain used for?",
     "expected_source_contains": ["langchain"]
+  },
+  {
+    "id": "rag_paper_definition",
+    "question": "What does retrieval augmented generation combine?",
+    "expected_source_contains": ["retrieval_augmented_generation_for_knowledge_intensive_nlp.pdf"]
+  },
+  {
+    "id": "qlora_memory",
+    "question": "How does QLoRA reduce memory usage during finetuning?",
+    "expected_source_contains": ["qlora_efficient_finetuning_of_quantized_llms.pdf"]
+  },
+  {
+    "id": "lora_low_rank",
+    "question": "What is the main idea of low-rank adaptation in LoRA?",
+    "expected_source_contains": ["lora_low_rank_adaptation_of_large_language_models.pdf"]
+  },
+  {
+    "id": "self_consistency_reasoning",
+    "question": "What is self-consistency in chain-of-thought reasoning?",
+    "expected_source_contains": [
+      "self_consistency_improves_chain_of_thought_reasoning_in_language_models.pdf"
+    ]
+  },
+  {
+    "id": "vllm_paged_attention",
+    "question": "What problem does PagedAttention solve in vLLM?",
+    "expected_source_contains": ["02-vllm-README.md", "vllm-docs.md"]
   }
 ]

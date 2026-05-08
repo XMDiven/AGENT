@@ -10,5 +10,6 @@ langchain-qdrant
 langchain-text-splitters
 
 qdrant-client
+markdown
 pypdf
 unstructured

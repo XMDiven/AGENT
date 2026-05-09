@@ -27,3 +27,6 @@ data/raw/*
 # 测试
 .pytest_cache/
 .coverage
+
+#杂项
+.DS_Store

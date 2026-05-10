@@ -8,7 +8,7 @@ PROJECT_ROOT: Path = Path(__file__).resolve().parents[1]
 DATA_DIR: Path = PROJECT_ROOT / "data"
 RAW_DATA_DIR: Path = DATA_DIR / "raw"
 
-dotenv.load_dotenv()
+dotenv.load_dotenv(PROJECT_ROOT / ".env")
 CHUNK_SIZE: int = 800
 CHUNK_OVERLAP: int = 100
 RETRIEVAL_TOP_K: int = 5

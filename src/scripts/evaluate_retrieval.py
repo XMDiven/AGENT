@@ -16,6 +16,7 @@ class RetrievalEvalCase:
     id : str
     question : str
     expected_source_contains:list[str]
+    match : str = "any"
 def load_case(path : Path = DEFAULT_CASES_PATH) ->list[RetrievalEvalCase]:
     raw_cases = json.loads(path.read_text(encoding="utf-8"))
 
@@ -24,6 +25,7 @@ def load_case(path : Path = DEFAULT_CASES_PATH) ->list[RetrievalEvalCase]:
             id = case["id"],
             question=case["question"],
             expected_source_contains=case["expected_source_contains"],
+            match=case.get("match", "any"),
         )
         for case in raw_cases
     ]
@@ -39,14 +41,26 @@ def get_sources(documents : list[Document]) -> list[str]:
 def has_expected_sources(
         sources : list[str] ,
         expected_source_contains: list[str],
+        match : str = "any"
 ) -> bool:
     normalize_sources = [source.lower() for source in sources]
     normalize_expected = [expected.lower() for expected in expected_source_contains]
-    return any(
-        expected in source
-        for source in normalize_sources
-        for expected in normalize_expected
-    )
+
+    if match == "any":
+        return any(
+            expected in source
+            for source in normalize_sources
+            for expected in normalize_expected
+        )
+
+    if match == "all":
+        return all(
+            any(expected in source for source in normalize_sources)
+            for expected in normalize_expected
+        )
+
+    raise ValueError(f"Unsupported match mode: {match}")
+
 
 def evaluate_case(case:RetrievalEvalCase , documents: list[Document]) -> bool:
 
@@ -54,7 +68,8 @@ def evaluate_case(case:RetrievalEvalCase , documents: list[Document]) -> bool:
 
     passed = has_expected_sources(
         sources ,
-        case.expected_source_contains
+        case.expected_source_contains,
+        case.match
     )
 
     status = "PASS" if passed else "FAIL"

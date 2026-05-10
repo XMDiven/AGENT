@@ -40,5 +40,23 @@
     "id": "vllm_paged_attention",
     "question": "What problem does PagedAttention solve in vLLM?",
     "expected_source_contains": ["02-vllm-README.md", "vllm-docs.md"]
+  },
+  {
+    "id": "qdrant_chinese_paraphrase",
+    "question": "向量数据库 Qdrant 主要解决什么问题？",
+    "expected_source_contains": ["qdrant-docs.md"]
+  },
+  {
+    "id": "rag_memory_paraphrase",
+    "question": "RAG 里的参数化记忆和非参数化记忆分别是什么？",
+    "expected_source_contains": [
+      "retrieval_augmented_generation_for_knowledge_intensive_nlp.pdf"
+    ]
+  },
+  {
+    "id": "langchain_llamaindex_comparison",
+    "question": "LangChain 和 LlamaIndex 分别适合做什么？",
+    "expected_source_contains": ["langchain", "llamaindex"],
+    "match": "all"
   }
 ]

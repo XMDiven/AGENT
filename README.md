@@ -127,12 +127,13 @@ conda run -n AI_DEV python -m src.scripts.run_eval
 
 ## 当前评估基线
 
-当前 golden set 包含 8 个覆盖 Markdown 和 PDF 来源的代表性问题。最近一次已验证基线为：
+当前 golden set 包含 11 个覆盖 Markdown、PDF、中文转述和多来源对比的代表性问题。
+当前已验证检索配置为 `RETRIEVAL_TOP_K = 5`。最近一次已验证基线为：
 
 ```text
 pytest: 27 passed
-retrieval eval: 8/8 passed
-answer eval: 8/8 passed
+retrieval eval: 11/11 passed
+answer eval: 11/11 passed
 ```
 
 ## 说明
@@ -272,12 +273,13 @@ conda run -n AI_DEV python -m src.scripts.run_eval
 
 ## Current Evaluation Baseline
 
-The current golden set contains 8 representative questions across Markdown and PDF sources. The latest verified baseline is:
+The current golden set contains 11 representative questions across Markdown, PDF, Chinese paraphrase, and multi-source comparison cases.
+The current verified retrieval setting is `RETRIEVAL_TOP_K = 5`. The latest verified baseline is:
 
 ```text
 pytest: 27 passed
-retrieval eval: 8/8 passed
-answer eval: 8/8 passed
+retrieval eval: 11/11 passed
+answer eval: 11/11 passed
 ```
 
 ## Notes

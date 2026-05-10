@@ -71,6 +71,63 @@ MOONSHOT_API_KEY or OPENAI_API_KEY
 docker compose up -d qdrant
 ```
 
+## 快速开始
+
+1. 创建并激活 Python 环境：
+
+```bash
+conda create -n AI_DEV python=3.11 -y
+conda activate AI_DEV
+pip install -r requirements-dev.txt
+```
+
+2. 配置环境变量：
+
+```bash
+cp .env.example .env
+```
+
+根据你的 Qdrant、embedding 模型和 LLM 服务配置编辑 `.env`。不要提交真实 API key。
+
+3. 准备语料：
+
+把需要入库的 Markdown 或 PDF 文件放到 `data/raw/`：
+
+```text
+data/raw/
+  example.md
+  example.pdf
+```
+
+4. 启动 Qdrant 并构建索引：
+
+```bash
+docker compose up -d qdrant
+python -m src.scripts.reset_index
+python -m src.scripts.build_index
+```
+
+5. 启动 API 并提问：
+
+```bash
+uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
+```
+
+```bash
+curl -X POST http://127.0.0.1:8001/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question":"What does retrieval augmented generation combine?"}'
+```
+
+6. 运行验证：
+
+```bash
+pytest tests/ -q
+python -m src.scripts.run_eval
+```
+
+说明：`run_eval` 依赖已经构建好的 Qdrant 索引和本地实验语料。若你使用自己的文档，需要同步调整 `experiments/retrieval_eval_cases.json`。
+
 ## 构建索引
 
 重置当前 Qdrant collection：
@@ -216,6 +273,63 @@ Qdrant can be started with Docker Compose:
 ```bash
 docker compose up -d qdrant
 ```
+
+## Quickstart
+
+1. Create and activate the Python environment:
+
+```bash
+conda create -n AI_DEV python=3.11 -y
+conda activate AI_DEV
+pip install -r requirements-dev.txt
+```
+
+2. Configure environment variables:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` for your Qdrant, embedding model, and LLM service settings. Do not commit real API keys.
+
+3. Prepare source documents:
+
+Put Markdown or PDF files into `data/raw/`:
+
+```text
+data/raw/
+  example.md
+  example.pdf
+```
+
+4. Start Qdrant and build the index:
+
+```bash
+docker compose up -d qdrant
+python -m src.scripts.reset_index
+python -m src.scripts.build_index
+```
+
+5. Start the API and ask a question:
+
+```bash
+uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
+```
+
+```bash
+curl -X POST http://127.0.0.1:8001/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question":"What does retrieval augmented generation combine?"}'
+```
+
+6. Run verification:
+
+```bash
+pytest tests/ -q
+python -m src.scripts.run_eval
+```
+
+Note: `run_eval` depends on a built Qdrant index and the local experiment corpus. If you use your own documents, update `experiments/retrieval_eval_cases.json` accordingly.
 
 ## Build The Index
 

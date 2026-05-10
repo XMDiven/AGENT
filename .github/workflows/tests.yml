@@ -15,8 +15,10 @@ jobs:
         with:
           python-version: "3.11"
       - name: Install dependencies
+        working-directory: rag
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
       - name: run test
-        run:  pytest tests/ -q
+        working-directory: rag
+        run: pytest tests/ -q

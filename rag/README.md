@@ -165,6 +165,45 @@ curl -X POST http://127.0.0.1:8001/ask \
 - `sources`：用于支撑回答的结构化来源元数据和片段
 - `trace`：问题分析、检索和生成步骤的轻量执行轨迹
 
+示例响应：
+
+```json
+{
+  "answer": "RAG combines retrieval with generation so the model can answer using external context. [1]",
+  "sources": [
+    {
+      "source": "data/raw/rag-paper.pdf",
+      "section_path": "unknown",
+      "snippet": "Retrieval-Augmented Generation combines a retriever with a generator..."
+    }
+  ],
+  "trace": [
+    {
+      "step": "query_analysis",
+      "status": "completed",
+      "detail": {
+        "normalized_question": "What does retrieval augmented generation combine?",
+        "needs_retrieval": true,
+        "reason": "normal knowledge question, use retrieval"
+      }
+    },
+    {
+      "step": "retrieval",
+      "status": "completed",
+      "detail": {
+        "top_k": 5,
+        "document_count": 5
+      }
+    },
+    {
+      "step": "generate_answer",
+      "status": "completed",
+      "detail": {}
+    }
+  ]
+}
+```
+
 ## 验证
 
 运行测试套件：
@@ -190,7 +229,7 @@ conda run -n AI_DEV python -m rag_app.scripts.run_eval
 当前已验证检索配置为 `RETRIEVAL_TOP_K = 5`。最近一次已验证基线为：
 
 ```text
-pytest: 30 passed
+pytest: 31 passed
 retrieval eval: 11/11 passed
 answer eval: 11/11 passed
 ```
@@ -370,6 +409,45 @@ The response contains:
 - `sources`: structured source metadata and snippets used to support the answer
 - `trace`: lightweight execution trace for query analysis, retrieval, and generation
 
+Example response:
+
+```json
+{
+  "answer": "RAG combines retrieval with generation so the model can answer using external context. [1]",
+  "sources": [
+    {
+      "source": "data/raw/rag-paper.pdf",
+      "section_path": "unknown",
+      "snippet": "Retrieval-Augmented Generation combines a retriever with a generator..."
+    }
+  ],
+  "trace": [
+    {
+      "step": "query_analysis",
+      "status": "completed",
+      "detail": {
+        "normalized_question": "What does retrieval augmented generation combine?",
+        "needs_retrieval": true,
+        "reason": "normal knowledge question, use retrieval"
+      }
+    },
+    {
+      "step": "retrieval",
+      "status": "completed",
+      "detail": {
+        "top_k": 5,
+        "document_count": 5
+      }
+    },
+    {
+      "step": "generate_answer",
+      "status": "completed",
+      "detail": {}
+    }
+  ]
+}
+```
+
 ## Verification
 
 Run the test suite:
@@ -395,7 +473,7 @@ The current golden set contains 11 representative questions across Markdown, PDF
 The current verified retrieval setting is `RETRIEVAL_TOP_K = 5`. The latest verified baseline is:
 
 ```text
-pytest: 30 passed
+pytest: 31 passed
 retrieval eval: 11/11 passed
 answer eval: 11/11 passed
 ```

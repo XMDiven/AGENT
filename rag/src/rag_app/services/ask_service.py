@@ -10,6 +10,14 @@ from rag_app.infrastructure.llm_client import get_client
 from rag_app.retrieval.query_analyzer import analyze_query
 from rag_app.retrieval.retriever import get_retriever
 
+def build_retrieved_sources(documents: list[Document]) -> list[str]:
+    sources: list[str] = []
+
+    for document in documents:
+        source = str(document.metadata.get("source", "unknown"))
+        if source not in sources:
+            sources.append(source)
+    return sources
 
 def build_trace_item(
     step: str,
@@ -77,6 +85,7 @@ def ask_question(question: str) -> dict[str, Any]:
             detail={
                 "top_k": config.RETRIEVAL_TOP_K,
                 "document_count": len(documents),
+                "retrieved_sources": build_retrieved_sources(documents),
             },
         )
     )

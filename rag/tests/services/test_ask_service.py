@@ -57,6 +57,9 @@ def test_ask_question_returns_answer_and_sources(monkeypatch) -> None:
         "retrieval",
         "generate_answer",
     ]
+    assert result["trace"][1]["detail"]["retrieved_sources"] == [
+        "data/raw/langchain-docs.md"
+    ]
     mock_retriever.invoke.assert_called_once_with("LangChain 是什么？")
 
 
@@ -90,6 +93,7 @@ def test_ask_question_returns_fallback_when_no_documents(monkeypatch) -> None:
                 "detail": {
                     "top_k": config.RETRIEVAL_TOP_K,
                     "document_count": 0,
+                    "retrieved_sources": [],
                 },
             },
         ],

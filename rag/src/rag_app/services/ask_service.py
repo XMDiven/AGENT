@@ -13,7 +13,7 @@ from rag_app.retrieval.retriever import get_retriever
 
 def build_trace_item(
     step: str,
-    status: str,
+    status: str = "completed",
     detail: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
@@ -54,6 +54,14 @@ def ask_question(question: str) -> dict[str, Any]:
     )
 
     if not analysis.needs_retrieval:
+        trace.append(
+            build_trace_item(
+                step="retrieval",
+                status="skipped",
+                detail={"reason": analysis.reason},
+            )
+        )
+
         return {
             "answer": config.FALLBACK_ANSWER,
             "sources": [],
@@ -62,13 +70,17 @@ def ask_question(question: str) -> dict[str, Any]:
 
     retriever = get_retriever()
     documents = retriever.invoke(analysis.normalized_question)
+
     trace.append(
         build_trace_item(
             step="retrieval",
-            status="completed",
-            detail={"document_count": len(documents)},
+            detail={
+                "top_k": config.RETRIEVAL_TOP_K,
+                "document_count": len(documents),
+            },
         )
     )
+
     if not documents:
         return {
             "answer": config.FALLBACK_ANSWER,
@@ -85,7 +97,8 @@ def ask_question(question: str) -> dict[str, Any]:
         prompt=prompt,
         llm=llm,
     )
-    trace.append(build_trace_item(step="generation", status="completed"))
+
+    trace.append(build_trace_item(step="generate_answer"))
 
     return {
         "answer": answer,

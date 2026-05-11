@@ -55,7 +55,7 @@ def test_ask_question_returns_answer_and_sources(monkeypatch) -> None:
     assert [item["step"] for item in result["trace"]] == [
         "query_analysis",
         "retrieval",
-        "generation",
+        "generate_answer",
     ]
     mock_retriever.invoke.assert_called_once_with("LangChain 是什么？")
 
@@ -88,7 +88,10 @@ def test_ask_question_returns_fallback_when_no_documents(monkeypatch) -> None:
             {
                 "step": "retrieval",
                 "status": "completed",
-                "detail": {"document_count": 0},
+                "detail": {
+                    "top_k": config.RETRIEVAL_TOP_K,
+                    "document_count": 0,
+                },
             },
         ],
     }

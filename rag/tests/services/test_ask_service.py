@@ -2,9 +2,11 @@ from unittest.mock import Mock
 
 from langchain_core.documents import Document
 
-from src.services.ask_service import ask_question
+from rag_app.services.ask_service import ask_question
 
-from config import config
+from rag_app.config import config
+
+
 def test_ask_question_returns_answer_and_sources(monkeypatch) -> None:
     documents = [
         Document(
@@ -20,23 +22,23 @@ def test_ask_question_returns_answer_and_sources(monkeypatch) -> None:
     mock_retriever.invoke.return_value = documents
 
     monkeypatch.setattr(
-        "src.services.ask_service.get_retriever",
+        "rag_app.services.ask_service.get_retriever",
         lambda: mock_retriever,
     )
     monkeypatch.setattr(
-        "src.services.ask_service.format_context",
+        "rag_app.services.ask_service.format_context",
         lambda docs: "formatted context",
     )
     monkeypatch.setattr(
-        "src.services.ask_service.get_client",
+        "rag_app.services.ask_service.get_client",
         lambda: "fake-llm",
     )
     monkeypatch.setattr(
-        "src.services.ask_service.get_qa_prompt",
+        "rag_app.services.ask_service.get_qa_prompt",
         lambda: "fake-prompt",
     )
     monkeypatch.setattr(
-        "src.services.ask_service.generate_answer",
+        "rag_app.services.ask_service.generate_answer",
         lambda question, context, prompt, llm: "LangChain 是一个用于构建 LLM 应用的框架。",
     )
 
@@ -50,6 +52,11 @@ def test_ask_question_returns_answer_and_sources(monkeypatch) -> None:
             "snippet": "LangChain is a framework for developing applications.",
         }
     ]
+    assert [item["step"] for item in result["trace"]] == [
+        "query_analysis",
+        "retrieval",
+        "generation",
+    ]
     mock_retriever.invoke.assert_called_once_with("LangChain 是什么？")
 
 
@@ -59,7 +66,7 @@ def test_ask_question_returns_fallback_when_no_documents(monkeypatch) -> None:
     mock_retriever.invoke.return_value = []
 
     monkeypatch.setattr(
-        "src.services.ask_service.get_retriever",
+        "rag_app.services.ask_service.get_retriever",
         lambda: mock_retriever,
     )
 
@@ -68,5 +75,21 @@ def test_ask_question_returns_fallback_when_no_documents(monkeypatch) -> None:
     assert result == {
         "answer": config.FALLBACK_ANSWER,
         "sources": [],
+        "trace": [
+            {
+                "step": "query_analysis",
+                "status": "completed",
+                "detail": {
+                    "normalized_question": "一个文档里完全没有的问题",
+                    "needs_retrieval": True,
+                    "reason": "normal knowledge question, use retrieval",
+                },
+            },
+            {
+                "step": "retrieval",
+                "status": "completed",
+                "detail": {"document_count": 0},
+            },
+        ],
     }
     mock_retriever.invoke.assert_called_once_with("一个文档里完全没有的问题")

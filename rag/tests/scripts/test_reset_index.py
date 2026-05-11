@@ -2,7 +2,7 @@ from unittest.mock import Mock
 
 from qdrant_client import models
 
-from src.scripts import reset_index
+from rag_app.scripts import reset_index
 
 
 def test_reset_index_deletes_all_points_from_configured_collection(

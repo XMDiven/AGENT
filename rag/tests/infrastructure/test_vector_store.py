@@ -4,8 +4,8 @@ from unittest.mock import Mock
 import pytest
 from langchain_core.documents import Document
 
-from src.infrastructure import vectore_store
-from src.infrastructure.vectore_store import build_chunk_id, ingest_chunks
+from rag_app.infrastructure import vectore_store
+from rag_app.infrastructure.vectore_store import build_chunk_id, ingest_chunks
 
 
 def test_build_chunk_id_returns_same_id_for_same_document() -> None:

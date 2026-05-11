@@ -32,16 +32,16 @@
 ## 项目结构
 
 ```text
-app/                 FastAPI 路由和应用入口
-config/              运行时配置
 data/raw/            原始来源文档
 experiments/         检索和回答质量实验记录
-src/ingestion/       加载器、切分器和元数据处理
-src/infrastructure/  Embedding、LLM 和向量库客户端
-src/retrieval/       Retriever 构建
-src/generation/      Prompt、上下文格式化和回答生成
-src/services/        应用服务层
-src/scripts/         索引构建和评估脚本
+src/rag_app/app/                 FastAPI 路由和应用入口
+src/rag_app/config/              运行时配置
+src/rag_app/ingestion/           加载器、切分器和元数据处理
+src/rag_app/infrastructure/      Embedding、LLM 和向量库客户端
+src/rag_app/retrieval/           Retriever 构建
+src/rag_app/generation/          Prompt、上下文格式化和回答生成
+src/rag_app/services/            应用服务层
+src/rag_app/scripts/             索引构建和评估脚本
 tests/               单元测试和脚本测试
 ```
 
@@ -79,6 +79,7 @@ docker compose up -d qdrant
 conda create -n AI_DEV python=3.11 -y
 conda activate AI_DEV
 pip install -r requirements-dev.txt
+pip install -e . --no-deps
 ```
 
 2. 配置环境变量：
@@ -103,14 +104,14 @@ data/raw/
 
 ```bash
 docker compose up -d qdrant
-python -m src.scripts.reset_index
-python -m src.scripts.build_index
+python -m rag_app.scripts.reset_index
+python -m rag_app.scripts.build_index
 ```
 
 5. 启动 API 并提问：
 
 ```bash
-uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
+uvicorn rag_app.app.main:app --host 127.0.0.1 --port 8001 --reload
 ```
 
 ```bash
@@ -123,7 +124,7 @@ curl -X POST http://127.0.0.1:8001/ask \
 
 ```bash
 pytest tests/ -q
-python -m src.scripts.run_eval
+python -m rag_app.scripts.run_eval
 ```
 
 说明：`run_eval` 依赖已经构建好的 Qdrant 索引和本地实验语料。若你使用自己的文档，需要同步调整 `experiments/retrieval_eval_cases.json`。
@@ -133,13 +134,13 @@ python -m src.scripts.run_eval
 重置当前 Qdrant collection：
 
 ```bash
-conda run -n AI_DEV python -m src.scripts.reset_index
+conda run -n AI_DEV python -m rag_app.scripts.reset_index
 ```
 
 从支持的原始文档构建向量索引：
 
 ```bash
-conda run -n AI_DEV python -m src.scripts.build_index
+conda run -n AI_DEV python -m rag_app.scripts.build_index
 ```
 
 ## 运行 API
@@ -147,7 +148,7 @@ conda run -n AI_DEV python -m src.scripts.build_index
 启动 FastAPI：
 
 ```bash
-conda run -n AI_DEV uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
+conda run -n AI_DEV uvicorn rag_app.app.main:app --host 127.0.0.1 --port 8001 --reload
 ```
 
 发送问题：
@@ -162,6 +163,7 @@ curl -X POST http://127.0.0.1:8001/ask \
 
 - `answer`：带编号引用的生成回答，例如 `[1]`
 - `sources`：用于支撑回答的结构化来源元数据和片段
+- `trace`：问题分析、检索和生成步骤的轻量执行轨迹
 
 ## 验证
 
@@ -174,7 +176,7 @@ conda run -n AI_DEV pytest tests/ -q
 运行统一 RAG 评估：
 
 ```bash
-conda run -n AI_DEV python -m src.scripts.run_eval
+conda run -n AI_DEV python -m rag_app.scripts.run_eval
 ```
 
 `run_eval` 会执行两类检查：
@@ -188,7 +190,7 @@ conda run -n AI_DEV python -m src.scripts.run_eval
 当前已验证检索配置为 `RETRIEVAL_TOP_K = 5`。最近一次已验证基线为：
 
 ```text
-pytest: 27 passed
+pytest: 30 passed
 retrieval eval: 11/11 passed
 answer eval: 11/11 passed
 ```
@@ -235,16 +237,16 @@ The project supports Markdown and PDF documents, builds a Qdrant vector index, e
 ## Project Structure
 
 ```text
-app/                 FastAPI routers and app entrypoint
-config/              Runtime configuration
 data/raw/            Source documents
 experiments/         Retrieval and answer-quality experiment records
-src/ingestion/       Loaders, chunkers, and metadata handling
-src/infrastructure/  Embedding, LLM, and vector store clients
-src/retrieval/       Retriever construction
-src/generation/      Prompt, context formatting, and answer generation
-src/services/        Application service layer
-src/scripts/         Indexing and evaluation scripts
+src/rag_app/app/                 FastAPI routers and app entrypoint
+src/rag_app/config/              Runtime configuration
+src/rag_app/ingestion/           Loaders, chunkers, and metadata handling
+src/rag_app/infrastructure/      Embedding, LLM, and vector store clients
+src/rag_app/retrieval/           Retriever construction
+src/rag_app/generation/          Prompt, context formatting, and answer generation
+src/rag_app/services/            Application service layer
+src/rag_app/scripts/             Indexing and evaluation scripts
 tests/               Unit and script tests
 ```
 
@@ -282,6 +284,7 @@ docker compose up -d qdrant
 conda create -n AI_DEV python=3.11 -y
 conda activate AI_DEV
 pip install -r requirements-dev.txt
+pip install -e . --no-deps
 ```
 
 2. Configure environment variables:
@@ -306,14 +309,14 @@ data/raw/
 
 ```bash
 docker compose up -d qdrant
-python -m src.scripts.reset_index
-python -m src.scripts.build_index
+python -m rag_app.scripts.reset_index
+python -m rag_app.scripts.build_index
 ```
 
 5. Start the API and ask a question:
 
 ```bash
-uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
+uvicorn rag_app.app.main:app --host 127.0.0.1 --port 8001 --reload
 ```
 
 ```bash
@@ -326,7 +329,7 @@ curl -X POST http://127.0.0.1:8001/ask \
 
 ```bash
 pytest tests/ -q
-python -m src.scripts.run_eval
+python -m rag_app.scripts.run_eval
 ```
 
 Note: `run_eval` depends on a built Qdrant index and the local experiment corpus. If you use your own documents, update `experiments/retrieval_eval_cases.json` accordingly.
@@ -336,13 +339,13 @@ Note: `run_eval` depends on a built Qdrant index and the local experiment corpus
 Reset the current Qdrant collection:
 
 ```bash
-conda run -n AI_DEV python -m src.scripts.reset_index
+conda run -n AI_DEV python -m rag_app.scripts.reset_index
 ```
 
 Build the vector index from supported raw documents:
 
 ```bash
-conda run -n AI_DEV python -m src.scripts.build_index
+conda run -n AI_DEV python -m rag_app.scripts.build_index
 ```
 
 ## Run The API
@@ -350,7 +353,7 @@ conda run -n AI_DEV python -m src.scripts.build_index
 Start FastAPI:
 
 ```bash
-conda run -n AI_DEV uvicorn app.main:app --host 127.0.0.1 --port 8001 --reload
+conda run -n AI_DEV uvicorn rag_app.app.main:app --host 127.0.0.1 --port 8001 --reload
 ```
 
 Ask a question:
@@ -365,6 +368,7 @@ The response contains:
 
 - `answer`: the generated answer with numbered citations such as `[1]`
 - `sources`: structured source metadata and snippets used to support the answer
+- `trace`: lightweight execution trace for query analysis, retrieval, and generation
 
 ## Verification
 
@@ -377,7 +381,7 @@ conda run -n AI_DEV pytest tests/ -q
 Run the unified RAG evaluation:
 
 ```bash
-conda run -n AI_DEV python -m src.scripts.run_eval
+conda run -n AI_DEV python -m rag_app.scripts.run_eval
 ```
 
 `run_eval` performs two checks:
@@ -391,7 +395,7 @@ The current golden set contains 11 representative questions across Markdown, PDF
 The current verified retrieval setting is `RETRIEVAL_TOP_K = 5`. The latest verified baseline is:
 
 ```text
-pytest: 27 passed
+pytest: 30 passed
 retrieval eval: 11/11 passed
 answer eval: 11/11 passed
 ```

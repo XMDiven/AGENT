@@ -1,5 +1,5 @@
 from langchain_core.documents import Document
-from src.scripts.evaluate_retrieval import get_sources, has_expected_sources
+from rag_app.scripts.evaluate_retrieval import get_sources, has_expected_sources
 
 
 def test_get_sources_extracts_document_source_metadata() -> None:

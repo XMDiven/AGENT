@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from config import config
-from src.ingestion.loaders.pdf_loader import load_pdf
+from rag_app.config import config
+from rag_app.ingestion.loaders.pdf_loader import load_pdf
 
 
 def test_load_pdf_returns_documents_with_source_and_page(

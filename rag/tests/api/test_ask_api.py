@@ -3,7 +3,7 @@ from unittest.mock import Mock
 import pytest
 from fastapi.testclient import TestClient
 
-from app.routers import ask as ask_router
+from rag_app.app.routers import ask as ask_router
 
 
 def test_ask_returns_answer_and_sources(
@@ -19,6 +19,7 @@ def test_ask_returns_answer_and_sources(
                 "snippet": "LangChain is a framework for developing applications.",
             }
         ],
+        "trace": [],
     }
 
     mock_ask_question = Mock(return_value=expected)
@@ -29,6 +30,8 @@ def test_ask_returns_answer_and_sources(
     assert response.status_code == 200
     assert response.json() == expected
     mock_ask_question.assert_called_once_with("LangChain 是什么？")
+
+
 def test_ask_returns_422_when_question_is_missing(client: TestClient) -> None:
 
     response = client.post("/ask", json={})

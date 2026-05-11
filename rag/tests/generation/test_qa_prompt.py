@@ -1,4 +1,4 @@
-from src.generation.qa_prompt import get_qa_prompt
+from rag_app.generation.qa_prompt import get_qa_prompt
 
 
 def test_qa_prompt_requires_numbered_citations_without_source_paths() -> None:

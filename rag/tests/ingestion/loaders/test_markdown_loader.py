@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from config import config
-from src.ingestion.loaders.markdown_loader import load_markdown
+from rag_app.config import config
+from rag_app.ingestion.loaders.markdown_loader import load_markdown
 
 
 def test_load_markdown_returns_document_with_relative_source(

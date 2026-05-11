@@ -1,8 +1,8 @@
 import pytest
 from langchain_core.documents import Document
 
-from config import config
-from src.ingestion.chunkers.pdf_chunker import chunk_pdf
+from rag_app.config import config
+from rag_app.ingestion.chunkers.pdf_chunker import chunk_pdf
 
 def test_pdf_chunker(
         monkeypatch : pytest.MonkeyPatch,

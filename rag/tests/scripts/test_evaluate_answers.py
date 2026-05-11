@@ -1,9 +1,9 @@
-from src.scripts.evaluate_answers import (
+from rag_app.scripts.evaluate_answers import (
     answer_has_forbidden_fragments,
     evaluate_answer_result,
     get_answer_source_paths,
 )
-from src.scripts.evaluate_retrieval import RetrievalEvalCase
+from rag_app.scripts.evaluate_retrieval import RetrievalEvalCase
 
 
 def test_get_answer_source_paths_extracts_sources_from_answer_result() -> None:

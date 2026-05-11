@@ -4,8 +4,8 @@ from unittest.mock import Mock
 import pytest
 from langchain_core.documents import Document
 
-from src.services import ingest_service
-from src.services.ingest_service import ingest_markdown_file
+from rag_app.services import ingest_service
+from rag_app.services.ingest_service import ingest_markdown_file
 
 
 
@@ -39,15 +39,15 @@ def test_ingest_markdown_file_returns_counts(monkeypatch : pytest.MonkeyPatch) -
     mock_ingest_chunks = Mock(return_value=["chunk-1", "chunk-2"])
 
     monkeypatch.setattr(
-        "src.services.ingest_service.load_markdown",
+        "rag_app.services.ingest_service.load_markdown",
         mock_load_markdown,
     )
     monkeypatch.setattr(
-        "src.services.ingest_service.chunk_markdown",
+        "rag_app.services.ingest_service.chunk_markdown",
         mock_chunk_markdown,
     )
     monkeypatch.setattr(
-        "src.services.ingest_service.ingest_chunks",
+        "rag_app.services.ingest_service.ingest_chunks",
         mock_ingest_chunks,
     )
 

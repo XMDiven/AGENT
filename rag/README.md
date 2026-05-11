@@ -184,7 +184,8 @@ curl -X POST http://127.0.0.1:8001/ask \
       "detail": {
         "normalized_question": "What does retrieval augmented generation combine?",
         "needs_retrieval": true,
-        "reason": "normal knowledge question, use retrieval"
+        "reason": "normal knowledge question, use retrieval",
+        "question_type": "general"
       }
     },
     {
@@ -232,7 +233,7 @@ conda run -n AI_DEV python -m rag_app.scripts.run_eval
 当前已验证检索配置为 `RETRIEVAL_TOP_K = 7`。最近一次已验证基线为：
 
 ```text
-pytest: 31 passed
+pytest: 34 passed
 retrieval eval: 11/11 passed
 answer eval: 11/11 passed
 ```
@@ -431,7 +432,8 @@ Example response:
       "detail": {
         "normalized_question": "What does retrieval augmented generation combine?",
         "needs_retrieval": true,
-        "reason": "normal knowledge question, use retrieval"
+        "reason": "normal knowledge question, use retrieval",
+        "question_type": "general"
       }
     },
     {
@@ -479,7 +481,7 @@ The current golden set contains 11 representative questions across Markdown, PDF
 The current verified retrieval setting is `RETRIEVAL_TOP_K = 7`. The latest verified baseline is:
 
 ```text
-pytest: 31 passed
+pytest: 34 passed
 retrieval eval: 11/11 passed
 answer eval: 11/11 passed
 ```

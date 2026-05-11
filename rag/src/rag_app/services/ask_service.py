@@ -57,6 +57,7 @@ def ask_question(question: str) -> dict[str, Any]:
                 "normalized_question": analysis.normalized_question,
                 "needs_retrieval": analysis.needs_retrieval,
                 "reason": analysis.reason,
+                "question_type": analysis.question_type,
             },
         )
     )

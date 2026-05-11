@@ -85,6 +85,7 @@ def test_ask_question_returns_fallback_when_no_documents(monkeypatch) -> None:
                     "normalized_question": "一个文档里完全没有的问题",
                     "needs_retrieval": True,
                     "reason": "normal knowledge question, use retrieval",
+                    "question_type": "general",
                 },
             },
             {
@@ -122,6 +123,7 @@ def test_ask_question_skips_retrieval_when_question_is_empty(monkeypatch) -> Non
                     "normalized_question": "",
                     "needs_retrieval": False,
                     "reason": "empty question",
+                    "question_type": "empty",
                 },
             },
             {

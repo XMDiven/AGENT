@@ -192,7 +192,10 @@ curl -X POST http://127.0.0.1:8001/ask \
       "status": "completed",
       "detail": {
         "top_k": 7,
-        "document_count": 5
+        "document_count": 5,
+        "retrieved_sources": [
+          "data/raw/rag-paper.pdf"
+        ]
       }
     },
     {
@@ -436,7 +439,10 @@ Example response:
       "status": "completed",
       "detail": {
         "top_k": 7,
-        "document_count": 5
+        "document_count": 5,
+        "retrieved_sources": [
+          "data/raw/rag-paper.pdf"
+        ]
       }
     },
     {

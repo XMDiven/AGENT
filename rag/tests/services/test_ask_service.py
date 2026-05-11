@@ -60,7 +60,6 @@ def test_ask_question_returns_answer_and_sources(monkeypatch) -> None:
     mock_retriever.invoke.assert_called_once_with("LangChain 是什么？")
 
 
-
 def test_ask_question_returns_fallback_when_no_documents(monkeypatch) -> None:
     mock_retriever = Mock()
     mock_retriever.invoke.return_value = []
@@ -96,3 +95,38 @@ def test_ask_question_returns_fallback_when_no_documents(monkeypatch) -> None:
         ],
     }
     mock_retriever.invoke.assert_called_once_with("一个文档里完全没有的问题")
+
+
+def test_ask_question_skips_retrieval_when_question_is_empty(monkeypatch) -> None:
+    mock_retriever = Mock()
+
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_retriever",
+        lambda: mock_retriever,
+    )
+
+    result = ask_question("   ")
+
+    assert result == {
+        "answer": config.FALLBACK_ANSWER,
+        "sources": [],
+        "trace": [
+            {
+                "step": "query_analysis",
+                "status": "completed",
+                "detail": {
+                    "normalized_question": "",
+                    "needs_retrieval": False,
+                    "reason": "empty question",
+                },
+            },
+            {
+                "step": "retrieval",
+                "status": "skipped",
+                "detail": {
+                    "reason": "empty question",
+                },
+            },
+        ],
+    }
+    mock_retriever.invoke.assert_not_called()

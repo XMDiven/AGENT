@@ -191,7 +191,7 @@ curl -X POST http://127.0.0.1:8001/ask \
       "step": "retrieval",
       "status": "completed",
       "detail": {
-        "top_k": 5,
+        "top_k": 7,
         "document_count": 5
       }
     },
@@ -226,7 +226,7 @@ conda run -n AI_DEV python -m rag_app.scripts.run_eval
 ## 当前评估基线
 
 当前 golden set 包含 11 个覆盖 Markdown、PDF、中文转述和多来源对比的代表性问题。
-当前已验证检索配置为 `RETRIEVAL_TOP_K = 5`。最近一次已验证基线为：
+当前已验证检索配置为 `RETRIEVAL_TOP_K = 7`。最近一次已验证基线为：
 
 ```text
 pytest: 31 passed
@@ -435,7 +435,7 @@ Example response:
       "step": "retrieval",
       "status": "completed",
       "detail": {
-        "top_k": 5,
+        "top_k": 7,
         "document_count": 5
       }
     },
@@ -470,7 +470,7 @@ conda run -n AI_DEV python -m rag_app.scripts.run_eval
 ## Current Evaluation Baseline
 
 The current golden set contains 11 representative questions across Markdown, PDF, Chinese paraphrase, and multi-source comparison cases.
-The current verified retrieval setting is `RETRIEVAL_TOP_K = 5`. The latest verified baseline is:
+The current verified retrieval setting is `RETRIEVAL_TOP_K = 7`. The latest verified baseline is:
 
 ```text
 pytest: 31 passed

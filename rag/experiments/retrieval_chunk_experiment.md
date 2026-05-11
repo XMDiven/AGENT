@@ -12,5 +12,6 @@
 | --- | ---: | --- | --- | --- |
 | baseline | 2 | 10/11 passed | not run | Multi-source comparison missed the LangChain source. |
 | variant-1 | 5 | 11/11 passed | 11/11 passed | Higher recall covered both LangChain and LlamaIndex with acceptable answer quality. |
+| variant-2 | 7 | 11/11 passed | 11/11 passed | Restored multi-source comparison after the expanded corpus; retrieves both LangChain and LlamaIndex. |
 
-Conclusion: `RETRIEVAL_TOP_K = 5` is the current verified baseline. It improves multi-source recall while keeping the current answer evaluation green.
+Conclusion: `RETRIEVAL_TOP_K = 7` is the current verified baseline. It restores multi-source recall for the expanded corpus while keeping the current answer evaluation green.

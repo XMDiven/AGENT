@@ -7,9 +7,9 @@ from dataclasses import dataclass
 from langchain_core.documents import Document
 
 from rag_app.retrieval.retriever import get_retriever
+from rag_app.config import config
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CASES_PATH = PROJECT_ROOT / "experiments" / "retrieval_eval_cases.json"
+DEFAULT_CASES_PATH = config.PROJECT_ROOT / "experiments" / "retrieval_eval_cases.json"
 
 @dataclass(frozen=True)
 class RetrievalEvalCase:

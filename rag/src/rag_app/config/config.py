@@ -10,7 +10,7 @@ RAW_DATA_DIR: Path = DATA_DIR / "raw"
 dotenv.load_dotenv(PROJECT_ROOT / ".env")
 CHUNK_SIZE: int = 800
 CHUNK_OVERLAP: int = 100
-RETRIEVAL_TOP_K: int = 5
+RETRIEVAL_TOP_K: int = 7
 
 COLLECTION_NAME: str | None = os.getenv("QDRANT_COLLECTION")
 

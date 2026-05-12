@@ -227,6 +227,14 @@ conda run -n AI_DEV python -m rag_app.scripts.run_eval
 - 检索评估：验证 golden questions 是否检索到预期来源文档。
 - 回答评估：验证 `/ask` 返回非空回答、有效来源、预期来源命中，并且不会把来源元数据泄漏到回答文本中。
 
+每次运行还会生成一份 JSON 评估报告：
+
+```text
+experiments/evaluation_runs/
+```
+
+报告包含当前 `RETRIEVAL_TOP_K`、检索评估汇总、回答评估汇总、每个 case 的来源路径，以及失败 case 列表。该文件用于保留可复现的评估证据，方便后续比较不同检索配置或 prompt 版本的效果。
+
 ## 当前评估基线
 
 当前 golden set 包含 11 个覆盖 Markdown、PDF、中文转述和多来源对比的代表性问题。
@@ -474,6 +482,14 @@ conda run -n AI_DEV python -m rag_app.scripts.run_eval
 
 - Retrieval evaluation: verifies expected source documents are retrieved for golden questions.
 - Answer evaluation: verifies `/ask` returns non-empty answers, valid sources, expected source hits, and does not leak source metadata into the answer text.
+
+Each run also writes a JSON evaluation report:
+
+```text
+experiments/evaluation_runs/
+```
+
+The report includes the current `RETRIEVAL_TOP_K`, retrieval and answer evaluation summaries, per-case source paths, and failed cases. These reports preserve reproducible evaluation evidence for comparing retrieval settings or prompt versions over time.
 
 ## Current Evaluation Baseline
 

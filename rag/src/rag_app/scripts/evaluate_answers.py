@@ -65,9 +65,10 @@ def evaluate_answer_result(
     return len(failures) == 0, failures
 
 
-def evaluate_case(case: RetrievalEvalCase) -> bool:
+def evaluate_case(case: RetrievalEvalCase) -> dict:
     result = ask_question(case.question)
     passed, failures = evaluate_answer_result(case, result)
+    sources = get_answer_source_paths(result)
     status = "PASS" if passed else "FAIL"
 
     print(f"Evaluating answer {case.id} with {status}")
@@ -81,27 +82,44 @@ def evaluate_case(case: RetrievalEvalCase) -> bool:
     print("answer:")
     print(result.get("answer", ""))
     print("sources:")
-    for source in get_answer_source_paths(result):
+    for source in sources:
         print(f"- {source}")
 
     print()
 
-    return passed
+    return {
+        "id": case.id,
+        "question": case.question,
+        "passed": passed,
+        "failures": failures,
+        "sources": sources,
+    }
 
 
-def main() -> None:
+def run_evaluation() -> dict:
     cases = load_case()
-    results = [
+
+    case_results = [
         evaluate_case(case)
         for case in cases
     ]
 
-    passed_count = sum(results)
-    total_count = len(results)
+    passed_count = sum(result["passed"] for result in case_results)
+    total_count = len(case_results)
 
     print(f"summary: {passed_count}/{total_count} passed")
 
-    if passed_count != total_count:
+    return {
+        "passed": passed_count,
+        "total": total_count,
+        "cases": case_results,
+    }
+
+
+def main() -> None:
+    summary = run_evaluation()
+
+    if summary["passed"] != summary["total"]:
         raise SystemExit(1)
 
 

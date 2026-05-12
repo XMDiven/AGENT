@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from dataclasses import dataclass
+from typing import Any
 
 from langchain_core.documents import Document
 
@@ -62,7 +63,7 @@ def has_expected_sources(
     raise ValueError(f"Unsupported match mode: {match}")
 
 
-def evaluate_case(case:RetrievalEvalCase , documents: list[Document]) -> bool:
+def evaluate_case(case:RetrievalEvalCase , documents: list[Document]) -> dict[str, Any]:
 
     sources = get_sources(documents)
 
@@ -84,21 +85,40 @@ def evaluate_case(case:RetrievalEvalCase , documents: list[Document]) -> bool:
 
     print()
 
-    return passed
-def main():
+    return {
+        "id": case.id,
+        "question": case.question,
+        "passed": passed,
+        "expected_source_contains": case.expected_source_contains,
+        "retrieved_sources": sources,
+    }
+
+
+
+
+def run_evaluation() -> dict:
     cases = load_case()
     retriever = get_retriever()
-    results = []
+    case_results = []
     for case in cases:
         documents = retriever.invoke(case.question)
-        passed = evaluate_case(case, documents)
-        results.append(passed)
-    passed_count = sum(results)
-    total_count = len(results)
-
+        result = evaluate_case(case, documents)
+        case_results.append(result)
+    passed_count = sum(result["passed"] for result in case_results)
+    total_count = len(case_results)
     print(f"summary: {passed_count}/{total_count} passed")
 
-    if passed_count != total_count:
+    return {
+        "passed": passed_count,
+        "total": total_count,
+        "cases": case_results,
+    }
+
+
+def main() -> None:
+    summary = run_evaluation()
+
+    if summary["passed"] != summary["total"]:
         raise SystemExit(1)
 
 if "__main__" == __name__:

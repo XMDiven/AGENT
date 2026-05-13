@@ -233,7 +233,7 @@ conda run -n AI_DEV python -m rag_app.scripts.run_eval
 experiments/evaluation_runs/
 ```
 
-报告包含当前 `RETRIEVAL_TOP_K`、检索评估汇总、回答评估汇总、每个 case 的来源路径，以及失败 case 列表。该文件用于保留可复现的评估证据，方便后续比较不同检索配置或 prompt 版本的效果。
+报告包含当前 `RETRIEVAL_TOP_K`、`prompt_version`、检索评估汇总、回答评估汇总、每个 case 的来源路径，以及失败 case 列表。`prompt_version` 用来标识当前回答生成 prompt 的版本；只有当 prompt 策略发生变化时，才需要升级版本号，例如 `qa_prompt_v1` 到 `qa_prompt_v2`。该文件用于保留可复现的评估证据，方便后续比较不同检索配置或 prompt 版本的效果。
 
 仓库只提交有代表性的 baseline 报告。新的本地评估报告默认会被忽略；如果某次运行需要作为新基线保存，可以使用 `git add -f` 手动加入。
 
@@ -491,7 +491,7 @@ Each run also writes a JSON evaluation report:
 experiments/evaluation_runs/
 ```
 
-The report includes the current `RETRIEVAL_TOP_K`, retrieval and answer evaluation summaries, per-case source paths, and failed cases. These reports preserve reproducible evaluation evidence for comparing retrieval settings or prompt versions over time.
+The report includes the current `RETRIEVAL_TOP_K`, `prompt_version`, retrieval and answer evaluation summaries, per-case source paths, and failed cases. `prompt_version` identifies the answer-generation prompt version; update it only when the prompt strategy changes, for example from `qa_prompt_v1` to `qa_prompt_v2`. These reports preserve reproducible evaluation evidence for comparing retrieval settings or prompt versions over time.
 
 Only representative baseline reports are committed. New local evaluation reports are ignored by default; use `git add -f` if a run should become a new baseline.
 

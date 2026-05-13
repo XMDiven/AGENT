@@ -2,9 +2,10 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from rag_app.config import config
 
+QA_PROMPT_VERSION = "qa_prompt_v1"
 
 def get_qa_prompt() -> ChatPromptTemplate:
-    """Return the QA prompt template."""
+
     return ChatPromptTemplate.from_messages(
         [
             ("system", config.DEFAULT_SYSTEM_PROMPT),

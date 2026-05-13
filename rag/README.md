@@ -163,7 +163,7 @@ curl -X POST http://127.0.0.1:8001/ask \
 
 - `answer`：带编号引用的生成回答，例如 `[1]`
 - `sources`：用于支撑回答的结构化来源元数据和片段
-- `trace`：问题分析、检索和生成步骤的轻量执行轨迹
+- `trace`：问题分析、检索规划、检索和生成步骤的轻量执行轨迹
 
 示例响应：
 
@@ -186,6 +186,15 @@ curl -X POST http://127.0.0.1:8001/ask \
         "needs_retrieval": true,
         "reason": "normal knowledge question, use retrieval",
         "question_type": "general"
+      }
+    },
+    {
+      "step": "retrieval_planning",
+      "status": "completed",
+      "detail": {
+        "question_type": "general",
+        "retrieval_strategy": "standard_retrieval",
+        "reason": "general knowledge questions use standard retrieval"
       }
     },
     {
@@ -421,7 +430,7 @@ The response contains:
 
 - `answer`: the generated answer with numbered citations such as `[1]`
 - `sources`: structured source metadata and snippets used to support the answer
-- `trace`: lightweight execution trace for query analysis, retrieval, and generation
+- `trace`: lightweight execution trace for query analysis, retrieval planning, retrieval, and generation
 
 Example response:
 
@@ -444,6 +453,15 @@ Example response:
         "needs_retrieval": true,
         "reason": "normal knowledge question, use retrieval",
         "question_type": "general"
+      }
+    },
+    {
+      "step": "retrieval_planning",
+      "status": "completed",
+      "detail": {
+        "question_type": "general",
+        "retrieval_strategy": "standard_retrieval",
+        "reason": "general knowledge questions use standard retrieval"
       }
     },
     {

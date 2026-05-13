@@ -10,6 +10,7 @@ from rag_app.infrastructure.llm_client import get_client
 from rag_app.retrieval.query_analyzer import analyze_query
 from rag_app.retrieval.retriever import get_retriever
 
+
 def build_retrieved_sources(documents: list[Document]) -> list[str]:
     sources: list[str] = []
 
@@ -18,6 +19,7 @@ def build_retrieved_sources(documents: list[Document]) -> list[str]:
         if source not in sources:
             sources.append(source)
     return sources
+
 
 def build_trace_item(
     step: str,
@@ -28,6 +30,25 @@ def build_trace_item(
         "step": step,
         "status": status,
         "detail": detail or {},
+    }
+
+
+def plan_retrieval(question_type: str) -> dict[str, str]:
+    if question_type == "empty":
+        return {
+            "retrieval_strategy": "skip_retrieval",
+            "reason": "empty questions do not need retrieval",
+        }
+
+    if question_type == "comparison":
+        return {
+            "retrieval_strategy": "comparison_retrieval",
+            "reason": "comparison questions may need evidence from multiple sources",
+        }
+
+    return {
+        "retrieval_strategy": "standard_retrieval",
+        "reason": "general knowledge questions use standard retrieval",
     }
 
 
@@ -49,6 +70,7 @@ def build_sources(documents: list[Document]) -> list[dict[str, str]]:
 def ask_question(question: str) -> dict[str, Any]:
     trace: list[dict[str, Any]] = []
     analysis = analyze_query(question)
+
     trace.append(
         build_trace_item(
             step="query_analysis",
@@ -58,6 +80,17 @@ def ask_question(question: str) -> dict[str, Any]:
                 "needs_retrieval": analysis.needs_retrieval,
                 "reason": analysis.reason,
                 "question_type": analysis.question_type,
+            },
+        )
+    )
+    retrieval_plan = plan_retrieval(analysis.question_type)
+    trace.append(
+        build_trace_item(
+            step="retrieval_planning",
+            status="completed",
+            detail={
+                "question_type": analysis.question_type,
+                **retrieval_plan,
             },
         )
     )

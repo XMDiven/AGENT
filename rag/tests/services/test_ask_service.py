@@ -2,9 +2,52 @@ from unittest.mock import Mock
 
 from langchain_core.documents import Document
 
+from rag_app.config import config
 from rag_app.services.ask_service import ask_question
 
-from rag_app.config import config
+
+def test_ask_question_plans_comparison_retrieval(monkeypatch) -> None:
+    documents = [
+        Document(
+            page_content="LangChain is used for building LLM applications.",
+            metadata={
+                "source": "data/raw/langchain-docs.md",
+                "section_path": "Overview",
+            },
+        )
+    ]
+
+    mock_retriever = Mock()
+    mock_retriever.invoke.return_value = documents
+
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_retriever",
+        lambda: mock_retriever,
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.format_context",
+        lambda docs: "formatted context",
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_client",
+        lambda: "fake-llm",
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_qa_prompt",
+        lambda: "fake-prompt",
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.generate_answer",
+        lambda question, context, prompt, llm: "LangChain 和 LlamaIndex 适合不同场景。",
+    )
+
+    result = ask_question("LangChain 和 LlamaIndex 分别适合做什么？")
+
+    assert result["trace"][1]["detail"] == {
+        "question_type": "comparison",
+        "retrieval_strategy": "comparison_retrieval",
+        "reason": "comparison questions may need evidence from multiple sources",
+    }
 
 
 def test_ask_question_returns_answer_and_sources(monkeypatch) -> None:
@@ -54,10 +97,11 @@ def test_ask_question_returns_answer_and_sources(monkeypatch) -> None:
     ]
     assert [item["step"] for item in result["trace"]] == [
         "query_analysis",
+        "retrieval_planning",
         "retrieval",
         "generate_answer",
     ]
-    assert result["trace"][1]["detail"]["retrieved_sources"] == [
+    assert result["trace"][2]["detail"]["retrieved_sources"] == [
         "data/raw/langchain-docs.md"
     ]
     mock_retriever.invoke.assert_called_once_with("LangChain 是什么？")
@@ -86,6 +130,15 @@ def test_ask_question_returns_fallback_when_no_documents(monkeypatch) -> None:
                     "needs_retrieval": True,
                     "reason": "normal knowledge question, use retrieval",
                     "question_type": "general",
+                },
+            },
+            {
+                "step": "retrieval_planning",
+                "status": "completed",
+                "detail": {
+                    "question_type": "general",
+                    "retrieval_strategy": "standard_retrieval",
+                    "reason": "general knowledge questions use standard retrieval",
                 },
             },
             {
@@ -124,6 +177,15 @@ def test_ask_question_skips_retrieval_when_question_is_empty(monkeypatch) -> Non
                     "needs_retrieval": False,
                     "reason": "empty question",
                     "question_type": "empty",
+                },
+            },
+            {
+                "step": "retrieval_planning",
+                "status": "completed",
+                "detail": {
+                    "question_type": "empty",
+                    "retrieval_strategy": "skip_retrieval",
+                    "reason": "empty questions do not need retrieval",
                 },
             },
             {

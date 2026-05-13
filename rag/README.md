@@ -235,6 +235,8 @@ experiments/evaluation_runs/
 
 报告包含当前 `RETRIEVAL_TOP_K`、检索评估汇总、回答评估汇总、每个 case 的来源路径，以及失败 case 列表。该文件用于保留可复现的评估证据，方便后续比较不同检索配置或 prompt 版本的效果。
 
+仓库只提交有代表性的 baseline 报告。新的本地评估报告默认会被忽略；如果某次运行需要作为新基线保存，可以使用 `git add -f` 手动加入。
+
 ## 当前评估基线
 
 当前 golden set 包含 11 个覆盖 Markdown、PDF、中文转述和多来源对比的代表性问题。
@@ -490,6 +492,8 @@ experiments/evaluation_runs/
 ```
 
 The report includes the current `RETRIEVAL_TOP_K`, retrieval and answer evaluation summaries, per-case source paths, and failed cases. These reports preserve reproducible evaluation evidence for comparing retrieval settings or prompt versions over time.
+
+Only representative baseline reports are committed. New local evaluation reports are ignored by default; use `git add -f` if a run should become a new baseline.
 
 ## Current Evaluation Baseline
 

@@ -17,6 +17,9 @@ rag/qdrant_storage/
 rag/data/raw/*
 !rag/data/raw/.gitkeep
 
+# 评估运行产物
+rag/experiments/evaluation_runs/*.json
+
 # 环境变量
 .env
 rag/.env

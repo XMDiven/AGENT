@@ -189,37 +189,63 @@ def ask_question(question: str) -> dict[str, Any]:
             "trace": trace,
         }
 
-    try:
-        context = format_context(documents)
-        llm = get_client()
-        prompt = get_qa_prompt()
-        answer = generate_answer(
-            question=analysis.normalized_question,
-            context=context,
-            prompt=prompt,
-            llm=llm,
-        )
-    except Exception as exc:
+    max_attempts = config.MAX_GENERATION_RETRY + 1
+    last_error: Exception | None = None
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            context = format_context(documents)
+            llm = get_client()
+            prompt = get_qa_prompt()
+            answer = generate_answer(
+                question=analysis.normalized_question,
+                context=context,
+                prompt=prompt,
+                llm=llm,
+            )
+
+            trace.append(
+                build_trace_item(
+                    step="generate_answer",
+                    status="completed",
+                    detail={"attempt": attempt},
+                )
+            )
+
+            return {
+                "answer": answer,
+                "sources": build_sources(documents),
+                "trace": trace,
+            }
+
+        except Exception as exc:
+            last_error = exc
+            if attempt < max_attempts:
+                trace.append(
+                    build_trace_item(
+                        step="generate_answer",
+                        status="retrying",
+                        detail={
+                            "attempt": attempt,
+                            "error_type": type(exc).__name__,
+                        },
+                    )
+                )
+
+    if last_error is not None:
         trace.append(
             build_trace_item(
                 step="generate_answer",
                 status="failed",
                 detail={
-                    "error_type": type(exc).__name__,
+                    "attempts": max_attempts,
+                    "error_type": type(last_error).__name__,
                 },
             )
         )
 
-        return {
-            "answer": config.FALLBACK_ANSWER,
-            "sources": build_sources(documents),
-            "trace": trace,
-        }
-
-    trace.append(build_trace_item(step="generate_answer"))
-
     return {
-        "answer": answer,
+        "answer": config.FALLBACK_ANSWER,
         "sources": build_sources(documents),
         "trace": trace,
     }

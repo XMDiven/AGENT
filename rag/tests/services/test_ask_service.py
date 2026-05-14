@@ -186,10 +186,73 @@ def test_ask_question_returns_fallback_when_answer_generation_fails(
         "step": "generate_answer",
         "status": "failed",
         "detail": {
+            "attempts": config.MAX_GENERATION_RETRY + 1,
             "error_type": "RuntimeError",
         },
     }
     mock_retriever.invoke.assert_called_once_with("LangChain 是什么？")
+
+
+def test_ask_question_retries_answer_generation_once(monkeypatch) -> None:
+    documents = [
+        Document(
+            page_content="LangChain is a framework for developing applications.",
+            metadata={
+                "source": "data/raw/langchain-docs.md",
+                "section_path": "Introduction > Overview",
+            },
+        )
+    ]
+
+    mock_retriever = Mock()
+    mock_retriever.invoke.return_value = documents
+    mock_generate_answer = Mock(
+        side_effect=[
+            RuntimeError("temporary LLM failure"),
+            "LangChain 是一个用于构建 LLM 应用的框架。",
+        ]
+    )
+
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_retriever",
+        lambda: mock_retriever,
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.format_context",
+        lambda docs: "formatted context",
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_client",
+        lambda: "fake-llm",
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_qa_prompt",
+        lambda: "fake-prompt",
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.generate_answer",
+        mock_generate_answer,
+    )
+
+    result = ask_question("LangChain 是什么？")
+
+    assert result["answer"] == "LangChain 是一个用于构建 LLM 应用的框架。"
+    assert mock_generate_answer.call_count == 2
+    assert result["trace"][-2] == {
+        "step": "generate_answer",
+        "status": "retrying",
+        "detail": {
+            "attempt": 1,
+            "error_type": "RuntimeError",
+        },
+    }
+    assert result["trace"][-1] == {
+        "step": "generate_answer",
+        "status": "completed",
+        "detail": {
+            "attempt": 2,
+        },
+    }
 
 
 def test_ask_question_returns_fallback_when_no_documents(monkeypatch) -> None:

@@ -14,7 +14,7 @@ RETRIEVAL_TOP_K: int = 7
 
 COLLECTION_NAME: str | None = os.getenv("QDRANT_COLLECTION")
 
-
+MAX_GENERATION_RETRY: int = 1
 
 
 FALLBACK_ANSWER: str = (

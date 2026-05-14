@@ -11,6 +11,53 @@ from rag_app.retrieval.query_analyzer import analyze_query
 from rag_app.retrieval.retriever import get_retriever
 
 
+def interleave_documents_by_source(documents: list[Document]) -> list[Document]:
+    documents_by_source: dict[str, list[Document]] = {}
+    source_order: list[str] = []
+
+    for document in documents:
+        source = str(document.metadata.get("source", "unknown"))
+
+        if source not in documents_by_source:
+            documents_by_source[source] = []
+            source_order.append(source)
+
+        documents_by_source[source].append(document)
+
+    reordered_documents: list[Document] = []
+
+    while len(reordered_documents) < len(documents):
+        added_document = False
+
+        for source in source_order:
+            source_documents = documents_by_source[source]
+
+            if source_documents:
+                reordered_documents.append(source_documents.pop(0))
+                added_document = True
+
+        if not added_document:
+            break
+
+    return reordered_documents
+
+
+def apply_retrieval_strategy(
+    documents: list[Document],
+    retrieval_strategy: str,
+) -> list[Document]:
+    if retrieval_strategy == "skip_retrieval":
+        return []
+
+    if retrieval_strategy == "standard_retrieval":
+        return documents
+
+    if retrieval_strategy == "comparison_retrieval":
+        return interleave_documents_by_source(documents)
+
+    return documents
+
+
 def build_retrieved_sources(documents: list[Document]) -> list[str]:
     sources: list[str] = []
 
@@ -83,7 +130,9 @@ def ask_question(question: str) -> dict[str, Any]:
             },
         )
     )
+
     retrieval_plan = plan_retrieval(analysis.question_type)
+
     trace.append(
         build_trace_item(
             step="retrieval_planning",
@@ -100,7 +149,10 @@ def ask_question(question: str) -> dict[str, Any]:
             build_trace_item(
                 step="retrieval",
                 status="skipped",
-                detail={"reason": analysis.reason},
+                detail={
+                    "retrieval_strategy": retrieval_plan["retrieval_strategy"],
+                    "reason": analysis.reason,
+                },
             )
         )
 
@@ -113,10 +165,16 @@ def ask_question(question: str) -> dict[str, Any]:
     retriever = get_retriever()
     documents = retriever.invoke(analysis.normalized_question)
 
+    documents = apply_retrieval_strategy(
+        documents=documents,
+        retrieval_strategy=retrieval_plan["retrieval_strategy"],
+    )
+
     trace.append(
         build_trace_item(
             step="retrieval",
             detail={
+                "retrieval_strategy": retrieval_plan["retrieval_strategy"],
                 "top_k": config.RETRIEVAL_TOP_K,
                 "document_count": len(documents),
                 "retrieved_sources": build_retrieved_sources(documents),

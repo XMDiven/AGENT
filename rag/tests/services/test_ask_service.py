@@ -3,7 +3,7 @@ from unittest.mock import Mock
 from langchain_core.documents import Document
 
 from rag_app.config import config
-from rag_app.services.ask_service import ask_question
+from rag_app.services.ask_service import ask_question, apply_retrieval_strategy
 
 
 def test_ask_question_plans_comparison_retrieval(monkeypatch) -> None:
@@ -48,6 +48,30 @@ def test_ask_question_plans_comparison_retrieval(monkeypatch) -> None:
         "retrieval_strategy": "comparison_retrieval",
         "reason": "comparison questions may need evidence from multiple sources",
     }
+    assert result["trace"][2]["detail"]["retrieval_strategy"] == (
+        "comparison_retrieval"
+    )
+
+
+def test_apply_comparison_retrieval_interleaves_documents_by_source() -> None:
+    documents = [
+        Document(page_content="A1", metadata={"source": "source-a.md"}),
+        Document(page_content="A2", metadata={"source": "source-a.md"}),
+        Document(page_content="B1", metadata={"source": "source-b.md"}),
+        Document(page_content="C1", metadata={"source": "source-c.md"}),
+    ]
+
+    result = apply_retrieval_strategy(
+        documents=documents,
+        retrieval_strategy="comparison_retrieval",
+    )
+
+    assert [document.page_content for document in result] == [
+        "A1",
+        "B1",
+        "C1",
+        "A2",
+    ]
 
 
 def test_ask_question_returns_answer_and_sources(monkeypatch) -> None:
@@ -145,6 +169,7 @@ def test_ask_question_returns_fallback_when_no_documents(monkeypatch) -> None:
                 "step": "retrieval",
                 "status": "completed",
                 "detail": {
+                    "retrieval_strategy": "standard_retrieval",
                     "top_k": config.RETRIEVAL_TOP_K,
                     "document_count": 0,
                     "retrieved_sources": [],
@@ -192,6 +217,7 @@ def test_ask_question_skips_retrieval_when_question_is_empty(monkeypatch) -> Non
                 "step": "retrieval",
                 "status": "skipped",
                 "detail": {
+                    "retrieval_strategy": "skip_retrieval",
                     "reason": "empty question",
                 },
             },

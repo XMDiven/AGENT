@@ -189,15 +189,32 @@ def ask_question(question: str) -> dict[str, Any]:
             "trace": trace,
         }
 
-    context = format_context(documents)
-    llm = get_client()
-    prompt = get_qa_prompt()
-    answer = generate_answer(
-        question=analysis.normalized_question,
-        context=context,
-        prompt=prompt,
-        llm=llm,
-    )
+    try:
+        context = format_context(documents)
+        llm = get_client()
+        prompt = get_qa_prompt()
+        answer = generate_answer(
+            question=analysis.normalized_question,
+            context=context,
+            prompt=prompt,
+            llm=llm,
+        )
+    except Exception as exc:
+        trace.append(
+            build_trace_item(
+                step="generate_answer",
+                status="failed",
+                detail={
+                    "error_type": type(exc).__name__,
+                },
+            )
+        )
+
+        return {
+            "answer": config.FALLBACK_ANSWER,
+            "sources": build_sources(documents),
+            "trace": trace,
+        }
 
     trace.append(build_trace_item(step="generate_answer"))
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from rag_app.config import config
 from rag_app.scripts.evaluate_retrieval import (
     RetrievalEvalCase,
     has_expected_sources,
@@ -39,6 +40,20 @@ def answer_has_forbidden_fragments(answer: str) -> bool:
     )
 
 
+def trace_has_failed_generation(result: dict[str, Any]) -> bool:
+    trace = result.get("trace", [])
+
+    if not isinstance(trace, list):
+        return False
+
+    return any(
+        isinstance(item, dict)
+        and item.get("step") == "generate_answer"
+        and item.get("status") == "failed"
+        for item in trace
+    )
+
+
 def evaluate_answer_result(
     case: RetrievalEvalCase,
     result: dict[str, Any],
@@ -49,6 +64,9 @@ def evaluate_answer_result(
 
     if not answer:
         failures.append("answer is empty")
+
+    if answer == config.FALLBACK_ANSWER:
+        failures.append("answer is fallback")
 
     if not sources:
         failures.append("sources are empty")
@@ -61,6 +79,9 @@ def evaluate_answer_result(
 
     if answer_has_forbidden_fragments(answer):
         failures.append("answer contains source metadata")
+
+    if trace_has_failed_generation(result):
+        failures.append("answer generation failed")
 
     return len(failures) == 0, failures
 

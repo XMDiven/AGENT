@@ -3,6 +3,7 @@ from rag_app.scripts.evaluate_answers import (
     evaluate_answer_result,
     get_answer_source_paths,
 )
+from rag_app.config import config
 from rag_app.scripts.evaluate_retrieval import RetrievalEvalCase
 
 
@@ -77,3 +78,59 @@ def test_evaluate_answer_result_fails_when_expected_source_is_missing() -> None:
 
     assert not passed
     assert "expected source not found" in failures
+
+
+def test_evaluate_answer_result_fails_when_answer_is_fallback() -> None:
+    case = RetrievalEvalCase(
+        id="qdrant_usage",
+        question="What is Qdrant used for?",
+        expected_source_contains=["qdrant-docs.md"],
+    )
+    result = {
+        "answer": config.FALLBACK_ANSWER,
+        "sources": [
+            {
+                "source": "data/raw/qdrant-docs.md",
+                "section_path": "unknown",
+                "snippet": "Qdrant is a vector search engine.",
+            }
+        ],
+    }
+
+    passed, failures = evaluate_answer_result(case, result)
+
+    assert not passed
+    assert "answer is fallback" in failures
+
+
+def test_evaluate_answer_result_fails_when_generation_trace_failed() -> None:
+    case = RetrievalEvalCase(
+        id="qdrant_usage",
+        question="What is Qdrant used for?",
+        expected_source_contains=["qdrant-docs.md"],
+    )
+    result = {
+        "answer": "Qdrant is used for vector search. [1]",
+        "sources": [
+            {
+                "source": "data/raw/qdrant-docs.md",
+                "section_path": "unknown",
+                "snippet": "Qdrant is a vector search engine.",
+            }
+        ],
+        "trace": [
+            {
+                "step": "generate_answer",
+                "status": "failed",
+                "detail": {
+                    "attempts": 2,
+                    "error_type": "RateLimitError",
+                },
+            }
+        ],
+    }
+
+    passed, failures = evaluate_answer_result(case, result)
+
+    assert not passed
+    assert "answer generation failed" in failures

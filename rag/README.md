@@ -194,6 +194,8 @@ curl -X POST http://127.0.0.1:8001/ask \
       "detail": {
         "question_type": "general",
         "retrieval_strategy": "standard_retrieval",
+        "retrieval_query": "What does retrieval augmented generation combine?",
+        "top_k": 7,
         "reason": "general knowledge questions use standard retrieval"
       }
     },
@@ -201,6 +203,8 @@ curl -X POST http://127.0.0.1:8001/ask \
       "step": "retrieval",
       "status": "completed",
       "detail": {
+        "retrieval_strategy": "standard_retrieval",
+        "retrieval_query": "What does retrieval augmented generation combine?",
         "top_k": 7,
         "document_count": 5,
         "retrieved_sources": [
@@ -461,6 +465,8 @@ Example response:
       "detail": {
         "question_type": "general",
         "retrieval_strategy": "standard_retrieval",
+        "retrieval_query": "What does retrieval augmented generation combine?",
+        "top_k": 7,
         "reason": "general knowledge questions use standard retrieval"
       }
     },
@@ -468,6 +474,8 @@ Example response:
       "step": "retrieval",
       "status": "completed",
       "detail": {
+        "retrieval_strategy": "standard_retrieval",
+        "retrieval_query": "What does retrieval augmented generation combine?",
         "top_k": 7,
         "document_count": 5,
         "retrieved_sources": [

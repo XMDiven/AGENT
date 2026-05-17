@@ -22,7 +22,7 @@ def test_ask_question_plans_comparison_retrieval(monkeypatch) -> None:
 
     monkeypatch.setattr(
         "rag_app.services.ask_service.get_retriever",
-        lambda: mock_retriever,
+        lambda top_k=None: mock_retriever,
     )
     monkeypatch.setattr(
         "rag_app.services.ask_service.format_context",
@@ -46,6 +46,8 @@ def test_ask_question_plans_comparison_retrieval(monkeypatch) -> None:
     assert result["trace"][1]["detail"] == {
         "question_type": "comparison",
         "retrieval_strategy": "comparison_retrieval",
+        "retrieval_query": "LangChain 和 LlamaIndex 分别适合做什么？",
+        "top_k": config.RETRIEVAL_TOP_K,
         "reason": "comparison questions may need evidence from multiple sources",
     }
     assert result["trace"][2]["detail"]["retrieval_strategy"] == (
@@ -90,7 +92,7 @@ def test_ask_question_returns_answer_and_sources(monkeypatch) -> None:
 
     monkeypatch.setattr(
         "rag_app.services.ask_service.get_retriever",
-        lambda: mock_retriever,
+        lambda top_k=None: mock_retriever,
     )
     monkeypatch.setattr(
         "rag_app.services.ask_service.format_context",
@@ -149,7 +151,7 @@ def test_ask_question_returns_fallback_when_answer_generation_fails(
 
     monkeypatch.setattr(
         "rag_app.services.ask_service.get_retriever",
-        lambda: mock_retriever,
+        lambda top_k=None: mock_retriever,
     )
     monkeypatch.setattr(
         "rag_app.services.ask_service.format_context",
@@ -215,7 +217,7 @@ def test_ask_question_retries_answer_generation_once(monkeypatch) -> None:
 
     monkeypatch.setattr(
         "rag_app.services.ask_service.get_retriever",
-        lambda: mock_retriever,
+        lambda top_k=None: mock_retriever,
     )
     monkeypatch.setattr(
         "rag_app.services.ask_service.format_context",
@@ -261,7 +263,7 @@ def test_ask_question_returns_fallback_when_no_documents(monkeypatch) -> None:
 
     monkeypatch.setattr(
         "rag_app.services.ask_service.get_retriever",
-        lambda: mock_retriever,
+        lambda top_k=None: mock_retriever,
     )
 
     result = ask_question("一个文档里完全没有的问题")
@@ -286,6 +288,8 @@ def test_ask_question_returns_fallback_when_no_documents(monkeypatch) -> None:
                 "detail": {
                     "question_type": "general",
                     "retrieval_strategy": "standard_retrieval",
+                    "retrieval_query": "一个文档里完全没有的问题",
+                    "top_k": config.RETRIEVAL_TOP_K,
                     "reason": "general knowledge questions use standard retrieval",
                 },
             },
@@ -294,6 +298,7 @@ def test_ask_question_returns_fallback_when_no_documents(monkeypatch) -> None:
                 "status": "completed",
                 "detail": {
                     "retrieval_strategy": "standard_retrieval",
+                    "retrieval_query": "一个文档里完全没有的问题",
                     "top_k": config.RETRIEVAL_TOP_K,
                     "document_count": 0,
                     "retrieved_sources": [],
@@ -309,7 +314,7 @@ def test_ask_question_skips_retrieval_when_question_is_empty(monkeypatch) -> Non
 
     monkeypatch.setattr(
         "rag_app.services.ask_service.get_retriever",
-        lambda: mock_retriever,
+        lambda top_k=None: mock_retriever,
     )
 
     result = ask_question("   ")
@@ -334,6 +339,8 @@ def test_ask_question_skips_retrieval_when_question_is_empty(monkeypatch) -> Non
                 "detail": {
                     "question_type": "empty",
                     "retrieval_strategy": "skip_retrieval",
+                    "retrieval_query": "",
+                    "top_k": 0,
                     "reason": "empty questions do not need retrieval",
                 },
             },
@@ -342,7 +349,9 @@ def test_ask_question_skips_retrieval_when_question_is_empty(monkeypatch) -> Non
                 "status": "skipped",
                 "detail": {
                     "retrieval_strategy": "skip_retrieval",
-                    "reason": "empty question",
+                    "retrieval_query": "",
+                    "top_k": 0,
+                    "reason": "empty questions do not need retrieval",
                 },
             },
         ],

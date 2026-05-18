@@ -235,10 +235,19 @@ conda run -n AI_DEV pytest tests/ -q
 conda run -n AI_DEV python -m rag_app.scripts.run_eval
 ```
 
+按 Prompt 版本运行评估：
+
+```bash
+conda run -n AI_DEV env QA_PROMPT_VERSION=qa_prompt_v1 python -m rag_app.scripts.run_eval
+conda run -n AI_DEV env QA_PROMPT_VERSION=qa_prompt_v2 python -m rag_app.scripts.run_eval
+```
+
 `run_eval` 会执行两类检查：
 
 - 检索评估：验证 golden questions 是否检索到预期来源文档。
 - 回答评估：验证 `/ask` 返回非空回答、有效来源、预期来源命中，并且不会把来源元数据泄漏到回答文本中。
+
+当 `QA_PROMPT_VERSION=qa_prompt_v2` 时，回答评估还会检查结构化输出契约：答案需要包含 `Direct answer:`、`Key evidence:` 和 `Limitations:` 三个部分。
 
 每次运行还会生成一份 JSON 评估报告：
 
@@ -506,10 +515,19 @@ Run the unified RAG evaluation:
 conda run -n AI_DEV python -m rag_app.scripts.run_eval
 ```
 
+Run evaluation by Prompt version:
+
+```bash
+conda run -n AI_DEV env QA_PROMPT_VERSION=qa_prompt_v1 python -m rag_app.scripts.run_eval
+conda run -n AI_DEV env QA_PROMPT_VERSION=qa_prompt_v2 python -m rag_app.scripts.run_eval
+```
+
 `run_eval` performs two checks:
 
 - Retrieval evaluation: verifies expected source documents are retrieved for golden questions.
 - Answer evaluation: verifies `/ask` returns non-empty answers, valid sources, expected source hits, and does not leak source metadata into the answer text.
+
+When `QA_PROMPT_VERSION=qa_prompt_v2`, answer evaluation also checks the structured-output contract: the answer must include `Direct answer:`, `Key evidence:`, and `Limitations:` sections.
 
 Each run also writes a JSON evaluation report:
 

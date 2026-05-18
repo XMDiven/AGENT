@@ -18,6 +18,12 @@ FORBIDDEN_ANSWER_FRAGMENTS = (
     "page_content",
 )
 
+QA_PROMPT_V2_REQUIRED_SECTIONS = (
+    "Direct answer:",
+    "Key evidence:",
+    "Limitations:",
+)
+
 
 def get_answer_source_paths(result: dict[str, Any]) -> list[str]:
     sources = result.get("sources", [])
@@ -30,6 +36,13 @@ def get_answer_source_paths(result: dict[str, Any]) -> list[str]:
         for source in sources
         if isinstance(source, dict)
     ]
+
+
+def answer_has_required_v2_sections(answer: str) -> bool:
+    return all(
+        section in answer
+        for section in QA_PROMPT_V2_REQUIRED_SECTIONS
+    )
 
 
 def answer_has_forbidden_fragments(answer: str) -> bool:
@@ -76,6 +89,12 @@ def evaluate_answer_result(
         expected_source_contains=case.expected_source_contains,
     ):
         failures.append("expected source not found")
+
+    if (
+        config.QA_PROMPT_VERSION == "qa_prompt_v2"
+        and not answer_has_required_v2_sections(answer)
+    ):
+        failures.append("answer does not match qa_prompt_v2 structure")
 
     if answer_has_forbidden_fragments(answer):
         failures.append("answer contains source metadata")

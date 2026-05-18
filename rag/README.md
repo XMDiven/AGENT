@@ -256,7 +256,7 @@ experiments/evaluation_runs/
 当前已验证检索配置为 `RETRIEVAL_TOP_K = 7`。最近一次已验证基线为：
 
 ```text
-pytest: 43 passed
+pytest: 49 passed
 retrieval eval: 11/11 passed
 answer eval: 11/11 passed
 ```
@@ -527,7 +527,7 @@ The current golden set contains 11 representative questions across Markdown, PDF
 The current verified retrieval setting is `RETRIEVAL_TOP_K = 7`. The latest verified baseline is:
 
 ```text
-pytest: 43 passed
+pytest: 49 passed
 retrieval eval: 11/11 passed
 answer eval: 11/11 passed
 ```

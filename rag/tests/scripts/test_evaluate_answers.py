@@ -1,5 +1,6 @@
 from rag_app.scripts.evaluate_answers import (
     answer_has_forbidden_fragments,
+    answer_has_required_v2_sections,
     evaluate_answer_result,
     get_answer_source_paths,
 )
@@ -134,3 +135,82 @@ def test_evaluate_answer_result_fails_when_generation_trace_failed() -> None:
 
     assert not passed
     assert "answer generation failed" in failures
+
+
+def test_answer_has_required_v2_sections_accepts_structured_answer() -> None:
+    answer = (
+        "Direct answer:\n"
+        "- RAG combines retrieval and generation. [1]\n\n"
+        "Key evidence:\n"
+        "- It retrieves external context. [1]\n\n"
+        "Limitations:\n"
+        "- No major limitation from the provided context."
+    )
+    assert answer_has_required_v2_sections(answer)
+
+
+def test_answer_has_required_v2_sections_rejects_missing_section() -> None:
+    answer = (
+        "Direct answer:\n"
+        "- RAG combines retrieval and generation. [1]\n\n"
+        "Key evidence:\n"
+        "- It retrieves external context. [1]"
+    )
+
+    assert not answer_has_required_v2_sections(answer)
+
+
+def test_evaluate_answer_result_fails_when_v2_structure_is_missing(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(config, "QA_PROMPT_VERSION", "qa_prompt_v2")
+
+    case = RetrievalEvalCase(
+        id="rag_definition",
+        question="What is RAG?",
+        expected_source_contains=["rag.pdf"],
+    )
+    result = {
+        "answer": "RAG combines retrieval and generation. [1]",
+        "sources": [
+            {
+                "source": "data/raw/rag.pdf",
+                "section_path": "unknown",
+                "snippet": "RAG combines retrieval and generation.",
+            }
+        ],
+        "trace": [],
+    }
+
+    passed, failures = evaluate_answer_result(case, result)
+
+    assert not passed
+    assert "answer does not match qa_prompt_v2 structure" in failures
+
+
+def test_evaluate_answer_result_does_not_require_v2_structure_for_v1(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(config, "QA_PROMPT_VERSION", "qa_prompt_v1")
+
+    case = RetrievalEvalCase(
+        id="rag_definition",
+        question="What is RAG?",
+        expected_source_contains=["rag.pdf"],
+    )
+    result = {
+        "answer": "RAG combines retrieval and generation. [1]",
+        "sources": [
+            {
+                "source": "data/raw/rag.pdf",
+                "section_path": "unknown",
+                "snippet": "RAG combines retrieval and generation.",
+            }
+        ],
+        "trace": [],
+    }
+
+    passed, failures = evaluate_answer_result(case, result)
+
+    assert passed
+    assert "answer does not match qa_prompt_v2 structure" not in failures

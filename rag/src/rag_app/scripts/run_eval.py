@@ -3,7 +3,6 @@ from datetime import datetime
 
 from rag_app.config import config
 from rag_app.scripts import evaluate_answers, evaluate_retrieval
-from rag_app.generation.qa_prompt import QA_PROMPT_VERSION
 
 
 def save_report(report: dict) -> None:
@@ -37,7 +36,7 @@ def main() -> None:
         "retrieval": retrieval_summary,
         "answer": answer_summary,
         "failed_cases": failed_cases,
-        "prompt_version": QA_PROMPT_VERSION,
+        "prompt_version": config.QA_PROMPT_VERSION,
     }
 
     save_report(report)

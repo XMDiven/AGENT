@@ -21,6 +21,9 @@ FALLBACK_ANSWER: str = (
     "我无法仅根据当前检索到的上下文可靠回答这个问题。"
 )
 
+QA_PROMPT_VERSION: str = os.getenv("QA_PROMPT_VERSION", "qa_prompt_v1")
+
+
 DEFAULT_SYSTEM_PROMPT: str = """
 You are a RAG assistant.
 Answer the user's question only based on the provided context.

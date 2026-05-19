@@ -8,7 +8,7 @@
 原始文档 -> 摄入 -> 切分 -> 向量嵌入 -> Qdrant 检索 -> LLM 生成回答 -> 引用来源
 ```
 
-项目支持 Markdown 和 PDF 文档，能够构建 Qdrant 向量索引，提供 FastAPI `/ask` 问答接口，并包含轻量级评估脚本，用于检查检索质量和最终回答质量。
+项目支持 Markdown 和 PDF 文档，能够通过本地目录或上传接口保存语料，构建 Qdrant 向量索引，提供 FastAPI `/ask` 问答接口，并包含轻量级评估脚本，用于检查检索质量和最终回答质量。
 
 ## 技术栈
 
@@ -22,6 +22,7 @@
 ## 核心功能
 
 - 从 `data/raw` 摄入 Markdown 和 PDF 文件
+- 通过 `/documents/upload` 上传 Markdown 和 PDF 文件到本地语料目录
 - 按稳定的来源元数据切分文档
 - 使用确定性的 chunk ID 将切片写入 Qdrant
 - 通过 `/ask` 接口提问
@@ -100,6 +101,13 @@ data/raw/
   example.pdf
 ```
 
+也可以在 API 启动后通过上传接口保存文件：
+
+```bash
+curl -X POST http://127.0.0.1:8001/documents/upload \
+  -F "file=@data/raw/example.md;type=text/markdown"
+```
+
 4. 启动 Qdrant 并构建索引：
 
 ```bash
@@ -150,6 +158,25 @@ conda run -n AI_DEV python -m rag_app.scripts.build_index
 ```bash
 conda run -n AI_DEV uvicorn rag_app.app.main:app --host 127.0.0.1 --port 8001 --reload
 ```
+
+上传 Markdown 或 PDF 文件：
+
+```bash
+curl -X POST http://127.0.0.1:8001/documents/upload \
+  -F "file=@data/raw/example.pdf;type=application/pdf"
+```
+
+上传响应示例：
+
+```json
+{
+  "filename": "example.pdf",
+  "saved_path": "example.pdf",
+  "content_type": "application/pdf"
+}
+```
+
+上传接口只负责把文件保存到 `data/raw/`。上传新文件后，需要重新运行 `build_index` 才能让新文档进入 Qdrant 检索。
 
 发送问题：
 
@@ -265,7 +292,7 @@ experiments/evaluation_runs/
 当前已验证检索配置为 `RETRIEVAL_TOP_K = 7`。最近一次已验证基线为：
 
 ```text
-pytest: 49 passed
+pytest: 52 passed
 retrieval eval: 11/11 passed
 answer eval: 11/11 passed
 ```
@@ -288,7 +315,7 @@ This repository is a learning-focused Retrieval-Augmented Generation (RAG) proje
 raw documents -> ingestion -> chunking -> embeddings -> Qdrant retrieval -> LLM answer -> cited sources
 ```
 
-The project supports Markdown and PDF documents, builds a Qdrant vector index, exposes a FastAPI `/ask` endpoint, and includes lightweight evaluation scripts for both retrieval quality and final answer output quality.
+The project supports Markdown and PDF documents, saves source files either from the local corpus directory or through an upload endpoint, builds a Qdrant vector index, exposes a FastAPI `/ask` endpoint, and includes lightweight evaluation scripts for both retrieval quality and final answer output quality.
 
 ## Tech Stack
 
@@ -302,6 +329,7 @@ The project supports Markdown and PDF documents, builds a Qdrant vector index, e
 ## Core Features
 
 - Ingest Markdown and PDF files from `data/raw`
+- Upload Markdown and PDF files through `/documents/upload`
 - Chunk documents with stable source metadata
 - Store chunks in Qdrant with deterministic chunk IDs
 - Ask questions through `/ask`
@@ -380,6 +408,13 @@ data/raw/
   example.pdf
 ```
 
+You can also upload files after the API starts:
+
+```bash
+curl -X POST http://127.0.0.1:8001/documents/upload \
+  -F "file=@data/raw/example.md;type=text/markdown"
+```
+
 4. Start Qdrant and build the index:
 
 ```bash
@@ -430,6 +465,25 @@ Start FastAPI:
 ```bash
 conda run -n AI_DEV uvicorn rag_app.app.main:app --host 127.0.0.1 --port 8001 --reload
 ```
+
+Upload a Markdown or PDF file:
+
+```bash
+curl -X POST http://127.0.0.1:8001/documents/upload \
+  -F "file=@data/raw/example.pdf;type=application/pdf"
+```
+
+Example upload response:
+
+```json
+{
+  "filename": "example.pdf",
+  "saved_path": "example.pdf",
+  "content_type": "application/pdf"
+}
+```
+
+The upload endpoint only saves the file into `data/raw/`. Run `build_index` again after uploading new files so they become searchable in Qdrant.
 
 Ask a question:
 
@@ -545,7 +599,7 @@ The current golden set contains 11 representative questions across Markdown, PDF
 The current verified retrieval setting is `RETRIEVAL_TOP_K = 7`. The latest verified baseline is:
 
 ```text
-pytest: 49 passed
+pytest: 52 passed
 retrieval eval: 11/11 passed
 answer eval: 11/11 passed
 ```

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from time import perf_counter
 
 from rag_app.config import config
 from rag_app.scripts.evaluate_retrieval import (
@@ -106,13 +107,17 @@ def evaluate_answer_result(
 
 
 def evaluate_case(case: RetrievalEvalCase) -> dict:
+    start = perf_counter()
     result = ask_question(case.question)
+    duration = perf_counter() - start
+
     passed, failures = evaluate_answer_result(case, result)
     sources = get_answer_source_paths(result)
     status = "PASS" if passed else "FAIL"
 
     print(f"Evaluating answer {case.id} with {status}")
     print(f"question: {case.question}")
+    print(f"duration: {duration:.2f}s")
 
     if failures:
         print("failures:")

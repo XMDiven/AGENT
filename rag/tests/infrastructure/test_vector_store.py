@@ -4,8 +4,8 @@ from unittest.mock import Mock
 import pytest
 from langchain_core.documents import Document
 
-from rag_app.infrastructure import vectore_store
-from rag_app.infrastructure.vectore_store import build_chunk_id, ingest_chunks
+from rag_app.infrastructure import vector_store
+from rag_app.infrastructure.vector_store import build_chunk_id, ingest_chunks
 
 
 def test_build_chunk_id_returns_same_id_for_same_document() -> None:
@@ -40,7 +40,7 @@ def test_ingest_chunks_uses_stable_document_ids(monkeypatch : pytest.MonkeyPatch
     mock_vector_store = Mock()
 
     monkeypatch.setattr(
-        vectore_store,
+        vector_store,
         "get_vector_store",
         Mock(return_value=mock_vector_store),
     )
@@ -66,7 +66,7 @@ def test_ingest_chunks_deduplicates_chunks_with_same_stable_id(
     mock_vector_store = Mock()
 
     monkeypatch.setattr(
-        vectore_store,
+        vector_store,
         "get_vector_store",
         Mock(return_value=mock_vector_store),
     )

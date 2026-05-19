@@ -1,5 +1,5 @@
 from rag_app.config import config
-from rag_app.infrastructure.vectore_store import get_vector_store
+from rag_app.infrastructure.vector_store import get_vector_store
 
 
 def get_retriever(top_k: int | None = None):

@@ -3,7 +3,7 @@ from rag_app.ingestion.loaders.pdf_loader import load_pdf
 
 from rag_app.ingestion.loaders.markdown_loader import load_markdown
 from rag_app.ingestion.chunkers.markdown_chunker import chunk_markdown
-from rag_app.infrastructure.vectore_store import ingest_chunks
+from rag_app.infrastructure.vector_store import ingest_chunks
 
 def ingest_markdown_file(path : str) ->dict[str, str | int]:
     documents = load_markdown(path)

@@ -35,6 +35,9 @@ rag/.env
 .pytest_cache/
 .coverage
 
+# 包管理器本地锁文件
+agent/uv.lock
+
 #杂项
 .DS_Store
 resume_alignment.md

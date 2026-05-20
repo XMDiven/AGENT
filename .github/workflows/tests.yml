@@ -22,3 +22,6 @@ jobs:
       - name: run test
         working-directory: rag
         run: pytest tests/ -q
+      - name: run agent tests
+        working-directory: agent
+        run: pytest tests/ -q

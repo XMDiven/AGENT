@@ -46,3 +46,42 @@ def test_run_agent_endpoint_uses_fallback_tool_for_empty_question() -> None:
             },
         },
     ]
+
+
+def test_run_agent_endpoint_returns_failed_tool_result_when_retrieval_fails(
+    monkeypatch,
+) -> None:
+    def raise_error(question: str) -> None:
+        raise RuntimeError("rag unavailable")
+
+    monkeypatch.setattr(
+        "agent_app.executor.run_retrieval_tool",
+        raise_error,
+    )
+
+    response = client.post(
+        "/agent/run",
+        json={
+            "question": "What is RAG?",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["tool_result"] == {
+        "tool_name": "retrieval_tool",
+        "status": "failed",
+        "output": {
+            "error_type": "RuntimeError",
+            "error": "rag unavailable",
+        },
+    }
+    assert data["trace"][-1] == {
+        "step": "execute_tool",
+        "status": "failed",
+        "detail": {
+            "tool_name": "retrieval_tool",
+        },
+    }

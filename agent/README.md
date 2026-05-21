@@ -15,11 +15,16 @@ analyze_question -> plan_tool -> execute_tool -> return result with trace
 - 返回结构化 `AgentRunResult`
 - 返回 Agent 层 trace，记录分析、规划和执行步骤
 - 当 retrieval tool 执行失败时，返回结构化失败结果
+- 通过 FastAPI 暴露 `POST /agent/run` 接口
 
 ## 模块结构
 
 ```text
 src/agent_app/
+  app/
+    main.py         # FastAPI 应用入口
+    routers/run.py  # POST /agent/run 接口
+  schemas/run.py    # Agent API 请求和响应结构
   tools.py           # 工具注册表
   planner.py         # 根据问题分析结果选择工具
   executor.py        # 执行工具并包装 ToolResult
@@ -117,6 +122,25 @@ conda run -n AI_DEV python -m agent_app.scripts.run_agent ""
 
 空字符串会走 `fallback_tool`，适合验证 CLI 和 Agent trace 输出。普通知识问题会走 `retrieval_tool`，可能触发 RAG 检索和 LLM 调用。
 
+## FastAPI 接口
+
+启动 Agent API：
+
+```bash
+cd agent
+conda run -n AI_DEV uvicorn agent_app.app.main:app --reload
+```
+
+调用 `POST /agent/run`：
+
+```bash
+curl -X POST http://127.0.0.1:8000/agent/run \
+  -H "Content-Type: application/json" \
+  -d '{"question": ""}'
+```
+
+空字符串会走 `fallback_tool`，适合验证 API、Agent trace 和响应结构。普通知识问题会走 `retrieval_tool`，可能触发 RAG 检索和 LLM 调用。
+
 ## 当前边界
 
 当前 `agent` 是轻量编排层，不是完整 Agent 平台。它还没有实现：
@@ -126,6 +150,5 @@ conda run -n AI_DEV python -m agent_app.scripts.run_agent ""
 - 多轮工具调用
 - 网络搜索工具
 - 多 Agent 协作
-- FastAPI Agent endpoint
 
 这些能力应在现有工具注册、规划、执行、trace 和失败处理稳定后再逐步扩展。

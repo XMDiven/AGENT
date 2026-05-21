@@ -106,6 +106,17 @@ cd agent
 conda run -n AI_DEV pytest tests/ -q
 ```
 
+## CLI 演示
+
+可以通过最小 CLI 入口运行 Agent 编排流程：
+
+```bash
+cd agent
+conda run -n AI_DEV python -m agent_app.scripts.run_agent ""
+```
+
+空字符串会走 `fallback_tool`，适合验证 CLI 和 Agent trace 输出。普通知识问题会走 `retrieval_tool`，可能触发 RAG 检索和 LLM 调用。
+
 ## 当前边界
 
 当前 `agent` 是轻量编排层，不是完整 Agent 平台。它还没有实现：

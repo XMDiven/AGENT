@@ -5,6 +5,7 @@ from rag_app.retrieval.query_analyzer import analyze_query
 
 from agent_app.executor import ToolResult, execute_plan
 from agent_app.planner import AgentPlan, plan_tool
+from agent_app.state import AgentState
 
 
 @dataclass(frozen=True)
@@ -54,8 +55,16 @@ def run_agent(question: str) -> AgentRunResult:
         },
     ]
 
-    return AgentRunResult(
+    state = AgentState(
+        question=question,
+        analysis=analysis,
         plan=plan,
         tool_result=tool_result,
         trace=trace,
+    )
+
+    return AgentRunResult(
+        plan=state.plan,
+        tool_result=state.tool_result,
+        trace=state.trace,
     )

@@ -13,7 +13,7 @@ def test_run_agent_uses_retrieval_tool(monkeypatch) -> None:
         lambda question: expected,
     )
 
-    result = run_agent("What is RAG?", needs_retrieval=True)
+    result = run_agent("What is RAG?")
 
     assert result.plan.tool.name == "retrieval_tool"
     assert result.tool_result.tool_name == "retrieval_tool"
@@ -21,6 +21,15 @@ def test_run_agent_uses_retrieval_tool(monkeypatch) -> None:
     assert result.tool_result.output == expected
 
     assert result.trace == [
+        {
+            "step": "analyze_question",
+            "status": "completed",
+            "detail": {
+                "needs_retrieval": True,
+                "question_type": "general",
+                "reason": "normal knowledge question, use retrieval",
+            },
+        },
         {
             "step": "plan_tool",
             "status": "completed",
@@ -38,8 +47,9 @@ def test_run_agent_uses_retrieval_tool(monkeypatch) -> None:
         },
     ]
 
+
 def test_run_agent_uses_fallback_tool_when_retrieval_is_not_needed() -> None:
-    result = run_agent("hello", needs_retrieval=False)
+    result = run_agent("")
 
     assert result.plan.tool.name == "fallback_tool"
     assert result.tool_result.tool_name == "fallback_tool"
@@ -49,6 +59,15 @@ def test_run_agent_uses_fallback_tool_when_retrieval_is_not_needed() -> None:
         "sources": [],
     }
     assert result.trace == [
+        {
+            "step": "analyze_question",
+            "status": "completed",
+            "detail": {
+                "needs_retrieval": False,
+                "question_type": "empty",
+                "reason": "empty question",
+            },
+        },
         {
             "step": "plan_tool",
             "status": "completed",

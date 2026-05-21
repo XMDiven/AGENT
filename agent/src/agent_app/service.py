@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Any
 
+from rag_app.retrieval.query_analyzer import analyze_query
+
 from agent_app.executor import ToolResult, execute_plan
 from agent_app.planner import AgentPlan, plan_tool
 
@@ -12,7 +14,10 @@ class AgentRunResult:
     trace: list[dict[str, Any]]
 
 
-def run_agent(question: str, needs_retrieval: bool) -> AgentRunResult:
+def run_agent(question: str) -> AgentRunResult:
+    analysis = analyze_query(question)
+    needs_retrieval = analysis.needs_retrieval
+
     plan = plan_tool(needs_retrieval=needs_retrieval)
 
     tool_result = execute_plan(
@@ -23,6 +28,15 @@ def run_agent(question: str, needs_retrieval: bool) -> AgentRunResult:
     )
 
     trace = [
+        {
+            "step": "analyze_question",
+            "status": "completed",
+            "detail": {
+                "needs_retrieval": analysis.needs_retrieval,
+                "question_type": analysis.question_type,
+                "reason": analysis.reason,
+            },
+        },
         {
             "step": "plan_tool",
             "status": "completed",

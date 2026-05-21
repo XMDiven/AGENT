@@ -3,7 +3,7 @@
 `agent` 是建立在 `rag` 子项目之上的轻量 Agent 编排层。它当前不实现完整 ReAct、多 Agent 协作或通用工具平台，而是先把最小可验证链路做清楚：
 
 ```text
-analyze_question -> plan_tool -> execute_tool -> return result with trace
+analyze_question -> plan_tool -> execute_tool -> build AgentState -> return result with trace
 ```
 
 ## 当前能力
@@ -14,6 +14,7 @@ analyze_question -> plan_tool -> execute_tool -> return result with trace
 - `retrieval_tool` 会调用 `rag_app.services.ask_service.ask_question`
 - 返回结构化 `AgentRunResult`
 - 返回 Agent 层 trace，记录分析、规划和执行步骤
+- 使用 `AgentState` 保存 question、analysis、plan、tool_result 和 trace，明确 Agent 内部状态流转
 - 当 retrieval tool 执行失败时，返回结构化失败结果
 - 通过 FastAPI 暴露 `POST /agent/run` 接口
 
@@ -29,6 +30,7 @@ src/agent_app/
   planner.py         # 根据问题分析结果选择工具
   executor.py        # 执行工具并包装 ToolResult
   retrieval_tool.py  # 调用 RAG 问答服务的工具适配层
+  state.py           # Agent 内部状态对象
   service.py         # Agent 对外统一入口 run_agent(question)
 ```
 

@@ -3,19 +3,31 @@ from agent_app.planner import AgentPlan
 from agent_app.tools import ToolDefinition, get_tool
 
 
-def test_execute_plan_returns_not_implemented_for_retrieval_tool() -> None:
+def test_execute_plan_runs_retrieval_tool(monkeypatch) -> None:
     plan = AgentPlan(
         tool=get_tool("retrieval_tool"),
         reason="question requires knowledge retrieval",
     )
 
-    result = execute_plan(plan)
+    expected = {
+        "answer": "RAG answer",
+        "sources": [],
+        "trace": [],
+    }
+
+    monkeypatch.setattr(
+        "agent_app.executor.run_retrieval_tool",
+        lambda question: expected,
+    )
+
+    result = execute_plan(
+        plan,
+        tool_input={"question": "What is RAG?"},
+    )
 
     assert result.tool_name == "retrieval_tool"
-    assert result.status == "not_implemented"
-    assert result.output == {
-        "reason": "retrieval_tool is registered but not wired to RAG yet",
-    }
+    assert result.status == "success"
+    assert result.output == expected
 
 
 def test_execute_plan_runs_fallback_tool() -> None:
@@ -24,7 +36,7 @@ def test_execute_plan_runs_fallback_tool() -> None:
         reason="question does not require retrieval",
     )
 
-    result = execute_plan(plan)
+    result = execute_plan(plan, tool_input={})
 
     assert result.tool_name == "fallback_tool"
     assert result.status == "success"
@@ -43,7 +55,7 @@ def test_execute_plan_returns_failed_result_for_unsupported_tool() -> None:
         reason="unsupported test case",
     )
 
-    result = execute_plan(plan)
+    result = execute_plan(plan, tool_input={})
 
     assert result.tool_name == "unknown_tool"
     assert result.status == "failed"

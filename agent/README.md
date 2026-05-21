@@ -17,14 +17,16 @@ analyze_question -> plan_tool -> execute_tool -> build AgentState -> return resu
 - 使用 `AgentState` 保存 question、analysis、plan、tool_result 和 trace，明确 Agent 内部状态流转
 - 当 retrieval tool 执行失败时，返回结构化失败结果
 - 通过 FastAPI 暴露 `POST /agent/run` 接口
+- 提供 `GET /health` 健康检查接口
 
 ## 模块结构
 
 ```text
 src/agent_app/
   app/
-    main.py         # FastAPI 应用入口
-    routers/run.py  # POST /agent/run 接口
+    main.py            # FastAPI 应用入口
+    routers/health.py  # GET /health 健康检查接口
+    routers/run.py     # POST /agent/run 接口
   schemas/run.py    # Agent API 请求和响应结构
   tools.py           # 工具注册表
   planner.py         # 根据问题分析结果选择工具
@@ -142,6 +144,21 @@ curl -X POST http://127.0.0.1:8000/agent/run \
 ```
 
 空字符串会走 `fallback_tool`，适合验证 API、Agent trace 和响应结构。普通知识问题会走 `retrieval_tool`，可能触发 RAG 检索和 LLM 调用。
+
+健康检查接口：
+
+```bash
+curl http://127.0.0.1:8000/health
+```
+
+返回：
+
+```json
+{
+  "status": "ok",
+  "service": "agent"
+}
+```
 
 ## 当前边界
 

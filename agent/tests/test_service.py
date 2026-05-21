@@ -20,6 +20,23 @@ def test_run_agent_uses_retrieval_tool(monkeypatch) -> None:
     assert result.tool_result.status == "success"
     assert result.tool_result.output == expected
 
+    assert result.trace == [
+        {
+            "step": "plan_tool",
+            "status": "completed",
+            "detail": {
+                "tool_name": "retrieval_tool",
+                "reason": "question requires knowledge retrieval",
+            },
+        },
+        {
+            "step": "execute_tool",
+            "status": "success",
+            "detail": {
+                "tool_name": "retrieval_tool",
+            },
+        },
+    ]
 
 def test_run_agent_uses_fallback_tool_when_retrieval_is_not_needed() -> None:
     result = run_agent("hello", needs_retrieval=False)
@@ -31,3 +48,20 @@ def test_run_agent_uses_fallback_tool_when_retrieval_is_not_needed() -> None:
         "answer": "No retrieval is needed for this question.",
         "sources": [],
     }
+    assert result.trace == [
+        {
+            "step": "plan_tool",
+            "status": "completed",
+            "detail": {
+                "tool_name": "fallback_tool",
+                "reason": "question does not require retrieval",
+            },
+        },
+        {
+            "step": "execute_tool",
+            "status": "success",
+            "detail": {
+                "tool_name": "fallback_tool",
+            },
+        },
+    ]

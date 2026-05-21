@@ -84,3 +84,30 @@ def test_run_agent_uses_fallback_tool_when_retrieval_is_not_needed() -> None:
             },
         },
     ]
+
+
+def test_run_agent_marks_trace_failed_when_retrieval_tool_fails(
+    monkeypatch,
+) -> None:
+    def raise_error(question: str) -> None:
+        raise RuntimeError("rag unavailable")
+
+    monkeypatch.setattr(
+        "agent_app.executor.run_retrieval_tool",
+        raise_error,
+    )
+
+    result = run_agent("What is RAG?")
+
+    assert result.tool_result.status == "failed"
+    assert result.tool_result.output == {
+        "error_type": "RuntimeError",
+        "error": "rag unavailable",
+    }
+    assert result.trace[-1] == {
+        "step": "execute_tool",
+        "status": "failed",
+        "detail": {
+            "tool_name": "retrieval_tool",
+        },
+    }

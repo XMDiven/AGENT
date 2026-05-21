@@ -62,3 +62,32 @@ def test_execute_plan_returns_failed_result_for_unsupported_tool() -> None:
     assert result.output == {
         "error": "Unsupported tool: unknown_tool",
     }
+
+
+def test_execute_plan_returns_failed_result_when_retrieval_tool_fails(
+    monkeypatch,
+) -> None:
+    plan = AgentPlan(
+        tool=get_tool("retrieval_tool"),
+        reason="question requires knowledge retrieval",
+    )
+
+    def raise_error(question: str) -> None:
+        raise RuntimeError("rag unavailable")
+
+    monkeypatch.setattr(
+        "agent_app.executor.run_retrieval_tool",
+        raise_error,
+    )
+
+    result = execute_plan(
+        plan,
+        tool_input={"question": "What is RAG?"},
+    )
+
+    assert result.tool_name == "retrieval_tool"
+    assert result.status == "failed"
+    assert result.output == {
+        "error_type": "RuntimeError",
+        "error": "rag unavailable",
+    }

@@ -18,8 +18,17 @@ def execute_plan(
 ) -> ToolResult:
     if plan.tool.name == "retrieval_tool":
         question = str((tool_input or {}).get("question", ""))
-        result = run_retrieval_tool(question)
-
+        try:
+            result = run_retrieval_tool(question)
+        except Exception as error:
+            return ToolResult(
+                tool_name=plan.tool.name,
+                status="failed",
+                output={
+                    "error_type": type(error).__name__,
+                    "error": str(error),
+                },
+            )
         return ToolResult(
             tool_name=plan.tool.name,
             status="success",

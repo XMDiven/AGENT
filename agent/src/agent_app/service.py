@@ -51,6 +51,7 @@ def run_agent(question: str) -> AgentRunResult:
             "status": tool_result.status,
             "detail": {
                 "tool_name": tool_result.tool_name,
+                "attempts": tool_result.attempts,
             },
         },
     ]

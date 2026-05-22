@@ -16,7 +16,7 @@ analyze_question -> plan_tool -> execute_tool -> build AgentState -> return resu
 - 返回结构化 `AgentRunResult`
 - 返回 Agent 层 trace，记录分析、规划和执行步骤
 - 使用 `AgentState` 保存 question、analysis、plan、tool_result 和 trace，明确 Agent 内部状态流转
-- 当 retrieval tool 执行失败时，返回结构化失败结果
+- 当 `retrieval_tool` 执行失败时，最多尝试 3 次，并返回结构化失败结果和 attempts 记录
 - 通过 FastAPI 暴露 `POST /agent/run` 接口
 - 提供 `GET /health` 健康检查接口
 
@@ -90,18 +90,48 @@ result = run_agent("What is RAG?")
     "step": "execute_tool",
     "status": "success",
     "detail": {
-      "tool_name": "retrieval_tool"
+      "tool_name": "retrieval_tool",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "success"
+        }
+      ]
     }
   }
 ]
 ```
 
-工具失败时，`tool_result.status` 会变为 `failed`，并返回错误类型和错误信息：
+`retrieval_tool` 调用 RAG，可能遇到向量库、LLM 或网络类临时失败，因此 executor 会最多尝试 3 次。工具失败时，`tool_result.status` 会变为 `failed`，并返回错误类型、错误信息和每次尝试记录：
 
 ```json
 {
-  "error_type": "RuntimeError",
-  "error": "rag unavailable"
+  "tool_name": "retrieval_tool",
+  "status": "failed",
+  "output": {
+    "error_type": "RuntimeError",
+    "error": "rag unavailable"
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "failed",
+      "error_type": "RuntimeError",
+      "error": "rag unavailable"
+    },
+    {
+      "attempt": 2,
+      "status": "failed",
+      "error_type": "RuntimeError",
+      "error": "rag unavailable"
+    },
+    {
+      "attempt": 3,
+      "status": "failed",
+      "error_type": "RuntimeError",
+      "error": "rag unavailable"
+    }
+  ]
 }
 ```
 
@@ -130,7 +160,13 @@ result = run_agent("What is RAG?")
     "step": "execute_tool",
     "status": "success",
     "detail": {
-      "tool_name": "summary_tool"
+      "tool_name": "summary_tool",
+      "attempts": [
+        {
+          "attempt": 1,
+          "status": "success"
+        }
+      ]
     }
   }
 ]

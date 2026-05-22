@@ -28,6 +28,12 @@ def test_execute_plan_runs_retrieval_tool(monkeypatch) -> None:
     assert result.tool_name == "retrieval_tool"
     assert result.status == "success"
     assert result.output == expected
+    assert result.attempts == [
+        {
+            "attempt": 1,
+            "status": "success",
+        }
+    ]
 
 
 def test_execute_plan_runs_fallback_tool() -> None:
@@ -44,6 +50,12 @@ def test_execute_plan_runs_fallback_tool() -> None:
         "answer": "No retrieval is needed for this question.",
         "sources": [],
     }
+    assert result.attempts == [
+        {
+            "attempt": 1,
+            "status": "success",
+        }
+    ]
 
 
 def test_execute_plan_runs_summary_tool() -> None:
@@ -62,6 +74,12 @@ def test_execute_plan_runs_summary_tool() -> None:
     assert result.output == {
         "summary": "LangChain helps build LLM apps.",
     }
+    assert result.attempts == [
+        {
+            "attempt": 1,
+            "status": "success",
+        }
+    ]
 
 
 def test_execute_plan_returns_failed_result_for_unsupported_tool() -> None:
@@ -80,6 +98,62 @@ def test_execute_plan_returns_failed_result_for_unsupported_tool() -> None:
     assert result.output == {
         "error": "Unsupported tool: unknown_tool",
     }
+    assert result.attempts == [
+        {
+            "attempt": 1,
+            "status": "failed",
+            "error": "Unsupported tool: unknown_tool",
+        }
+    ]
+
+
+def test_execute_plan_retries_retrieval_tool_until_success(monkeypatch) -> None:
+    plan = AgentPlan(
+        tool=get_tool("retrieval_tool"),
+        reason="question requires knowledge retrieval",
+    )
+    expected = {
+        "answer": "RAG answer",
+        "sources": [],
+        "trace": [],
+    }
+    calls = {"count": 0}
+
+    def flaky_retrieval_tool(question: str) -> dict:
+        calls["count"] += 1
+
+        if calls["count"] == 1:
+            raise RuntimeError("temporary rag error")
+
+        return expected
+
+    monkeypatch.setattr(
+        "agent_app.executor.run_retrieval_tool",
+        flaky_retrieval_tool,
+    )
+
+    result = execute_plan(
+        plan,
+        tool_input={"question": "What is RAG?"},
+        max_attempts=3,
+    )
+
+    assert result.tool_name == "retrieval_tool"
+    assert result.status == "success"
+    assert result.output == expected
+    assert result.attempts == [
+        {
+            "attempt": 1,
+            "status": "failed",
+            "error_type": "RuntimeError",
+            "error": "temporary rag error",
+        },
+        {
+            "attempt": 2,
+            "status": "success",
+        },
+    ]
+    assert calls["count"] == 2
 
 
 def test_execute_plan_returns_failed_result_when_retrieval_tool_fails(
@@ -109,3 +183,23 @@ def test_execute_plan_returns_failed_result_when_retrieval_tool_fails(
         "error_type": "RuntimeError",
         "error": "rag unavailable",
     }
+    assert result.attempts == [
+        {
+            "attempt": 1,
+            "status": "failed",
+            "error_type": "RuntimeError",
+            "error": "rag unavailable",
+        },
+        {
+            "attempt": 2,
+            "status": "failed",
+            "error_type": "RuntimeError",
+            "error": "rag unavailable",
+        },
+        {
+            "attempt": 3,
+            "status": "failed",
+            "error_type": "RuntimeError",
+            "error": "rag unavailable",
+        },
+    ]

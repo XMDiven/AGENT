@@ -19,6 +19,12 @@ def test_run_agent_uses_retrieval_tool(monkeypatch) -> None:
     assert result.tool_result.tool_name == "retrieval_tool"
     assert result.tool_result.status == "success"
     assert result.tool_result.output == expected
+    assert result.tool_result.attempts == [
+        {
+            "attempt": 1,
+            "status": "success",
+        }
+    ]
 
     assert result.trace == [
         {
@@ -43,6 +49,12 @@ def test_run_agent_uses_retrieval_tool(monkeypatch) -> None:
             "status": "success",
             "detail": {
                 "tool_name": "retrieval_tool",
+                "attempts": [
+                    {
+                        "attempt": 1,
+                        "status": "success",
+                    }
+                ],
             },
         },
     ]
@@ -58,6 +70,12 @@ def test_run_agent_uses_fallback_tool_when_retrieval_is_not_needed() -> None:
         "answer": "No retrieval is needed for this question.",
         "sources": [],
     }
+    assert result.tool_result.attempts == [
+        {
+            "attempt": 1,
+            "status": "success",
+        }
+    ]
     assert result.trace == [
         {
             "step": "analyze_question",
@@ -81,6 +99,12 @@ def test_run_agent_uses_fallback_tool_when_retrieval_is_not_needed() -> None:
             "status": "success",
             "detail": {
                 "tool_name": "fallback_tool",
+                "attempts": [
+                    {
+                        "attempt": 1,
+                        "status": "success",
+                    }
+                ],
             },
         },
     ]
@@ -95,6 +119,12 @@ def test_run_agent_uses_summary_tool_for_summary_question() -> None:
     assert result.tool_result.output == {
         "summary": "请总结 LangChain 的用途",
     }
+    assert result.tool_result.attempts == [
+        {
+            "attempt": 1,
+            "status": "success",
+        }
+    ]
     assert result.trace == [
         {
             "step": "analyze_question",
@@ -118,6 +148,12 @@ def test_run_agent_uses_summary_tool_for_summary_question() -> None:
             "status": "success",
             "detail": {
                 "tool_name": "summary_tool",
+                "attempts": [
+                    {
+                        "attempt": 1,
+                        "status": "success",
+                    }
+                ],
             },
         },
     ]
@@ -141,10 +177,50 @@ def test_run_agent_marks_trace_failed_when_retrieval_tool_fails(
         "error_type": "RuntimeError",
         "error": "rag unavailable",
     }
+    assert result.tool_result.attempts == [
+        {
+            "attempt": 1,
+            "status": "failed",
+            "error_type": "RuntimeError",
+            "error": "rag unavailable",
+        },
+        {
+            "attempt": 2,
+            "status": "failed",
+            "error_type": "RuntimeError",
+            "error": "rag unavailable",
+        },
+        {
+            "attempt": 3,
+            "status": "failed",
+            "error_type": "RuntimeError",
+            "error": "rag unavailable",
+        },
+    ]
     assert result.trace[-1] == {
         "step": "execute_tool",
         "status": "failed",
         "detail": {
             "tool_name": "retrieval_tool",
+            "attempts": [
+                {
+                    "attempt": 1,
+                    "status": "failed",
+                    "error_type": "RuntimeError",
+                    "error": "rag unavailable",
+                },
+                {
+                    "attempt": 2,
+                    "status": "failed",
+                    "error_type": "RuntimeError",
+                    "error": "rag unavailable",
+                },
+                {
+                    "attempt": 3,
+                    "status": "failed",
+                    "error_type": "RuntimeError",
+                    "error": "rag unavailable",
+                },
+            ],
         },
     }

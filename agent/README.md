@@ -9,9 +9,10 @@ analyze_question -> plan_tool -> execute_tool -> build AgentState -> return resu
 ## 当前能力
 
 - 调用 RAG 的 `analyze_query()` 判断问题是否需要检索
-- 根据 `needs_retrieval` 选择 `retrieval_tool` 或 `fallback_tool`
+- 根据 `question_type` 选择 `retrieval_tool`、`summary_tool` 或 `fallback_tool`
 - 通过 `executor` 执行工具
 - `retrieval_tool` 会调用 `rag_app.services.ask_service.ask_question`
+- `summary_tool` 会对用户输入文本执行本地确定性摘要
 - 返回结构化 `AgentRunResult`
 - 返回 Agent 层 trace，记录分析、规划和执行步骤
 - 使用 `AgentState` 保存 question、analysis、plan、tool_result 和 trace，明确 Agent 内部状态流转
@@ -32,6 +33,7 @@ src/agent_app/
   planner.py         # 根据问题分析结果选择工具
   executor.py        # 执行工具并包装 ToolResult
   retrieval_tool.py  # 调用 RAG 问答服务的工具适配层
+  summary_tool.py    # 本地摘要工具
   state.py           # Agent 内部状态对象
   service.py         # Agent 对外统一入口 run_agent(question)
 ```
@@ -52,7 +54,18 @@ result = run_agent("What is RAG?")
 - `tool_result`: 工具执行结果
 - `trace`: Agent 层执行轨迹
 
-成功路径示例：
+## 工具规划策略
+
+当前 planner 是规则式规划，不调用 LLM。它根据 RAG `query_analyzer` 返回的 `question_type` 选择工具：
+
+| question_type | tool | 说明 |
+| --- | --- | --- |
+| `empty` | `fallback_tool` | 空问题不执行检索 |
+| `summary` | `summary_tool` | 对用户输入文本做本地摘要 |
+| `general` | `retrieval_tool` | 使用 RAG 知识库检索回答 |
+| `comparison` | `retrieval_tool` | 使用 RAG 知识库检索后回答比较类问题 |
+
+普通知识问题成功路径示例：
 
 ```json
 [
@@ -92,6 +105,37 @@ result = run_agent("What is RAG?")
 }
 ```
 
+总结类问题会走 `summary_tool`：
+
+```json
+[
+  {
+    "step": "analyze_question",
+    "status": "completed",
+    "detail": {
+      "needs_retrieval": true,
+      "question_type": "summary",
+      "reason": "summary question, use retrieval"
+    }
+  },
+  {
+    "step": "plan_tool",
+    "status": "completed",
+    "detail": {
+      "tool_name": "summary_tool",
+      "reason": "question asks for summarization"
+    }
+  },
+  {
+    "step": "execute_tool",
+    "status": "success",
+    "detail": {
+      "tool_name": "summary_tool"
+    }
+  }
+]
+```
+
 ## 和 RAG 的关系
 
 Agent trace 记录上层编排过程：
@@ -126,6 +170,24 @@ conda run -n AI_DEV python -m agent_app.scripts.run_agent ""
 
 空字符串会走 `fallback_tool`，适合验证 CLI 和 Agent trace 输出。普通知识问题会走 `retrieval_tool`，可能触发 RAG 检索和 LLM 调用。
 
+总结类问题会走 `summary_tool`：
+
+```bash
+conda run -n AI_DEV python -m agent_app.scripts.run_agent "请总结 LangChain 的用途"
+```
+
+响应中的 `tool_result` 会包含：
+
+```json
+{
+  "tool_name": "summary_tool",
+  "status": "success",
+  "output": {
+    "summary": "请总结 LangChain 的用途"
+  }
+}
+```
+
 ## FastAPI 接口
 
 启动 Agent API：
@@ -144,6 +206,14 @@ curl -X POST http://127.0.0.1:8000/agent/run \
 ```
 
 空字符串会走 `fallback_tool`，适合验证 API、Agent trace 和响应结构。普通知识问题会走 `retrieval_tool`，可能触发 RAG 检索和 LLM 调用。
+
+调用总结工具：
+
+```bash
+curl -X POST http://127.0.0.1:8000/agent/run \
+  -H "Content-Type: application/json" \
+  -d '{"question": "请总结 LangChain 的用途"}'
+```
 
 健康检查接口：
 
@@ -167,6 +237,7 @@ curl http://127.0.0.1:8000/health
 - LLM planner
 - ReAct 循环
 - 多轮工具调用
+- LLM 摘要工具
 - 网络搜索工具
 - 多 Agent 协作
 

@@ -17,14 +17,14 @@ class AgentRunResult:
 
 def run_agent(question: str) -> AgentRunResult:
     analysis = analyze_query(question)
-    needs_retrieval = analysis.needs_retrieval
 
-    plan = plan_tool(needs_retrieval=needs_retrieval)
+    plan = plan_tool(question_type=analysis.question_type)
 
     tool_result = execute_plan(
         plan=plan,
         tool_input={
             "question": question,
+            "text": question,
         },
     )
 

@@ -3,6 +3,7 @@ from typing import Any
 
 from agent_app.planner import AgentPlan
 from agent_app.retrieval_tool import run_retrieval_tool
+from agent_app.summary_tool import run_summary_tool
 
 
 @dataclass(frozen=True)
@@ -43,6 +44,15 @@ def execute_plan(
                 "answer": "No retrieval is needed for this question.",
                 "sources": [],
             },
+        )
+
+    if plan.tool.name == "summary_tool":
+        text = str((tool_input or {}).get("text", ""))
+
+        return ToolResult(
+            tool_name=plan.tool.name,
+            status="success",
+            output=run_summary_tool(text),
         )
 
     return ToolResult(

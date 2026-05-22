@@ -10,6 +10,16 @@ class QueryAnalysis:
     question_type: str
 
 
+def build_reason(question_type: str) -> str:
+    if question_type == "comparison":
+        return "comparison question, use retrieval"
+
+    if question_type == "summary":
+        return "summary question, use retrieval"
+
+    return "normal knowledge question, use retrieval"
+
+
 def classify_question_type(question: str) -> str:
     normalized_question = question.lower()
     comparison_markers = (
@@ -22,8 +32,19 @@ def classify_question_type(question: str) -> str:
         "compare ",
     )
 
+    summary_markers = (
+        "总结",
+        "概括",
+        "摘要",
+        "summary",
+        "summarize",
+    )
+
     if any(marker in normalized_question for marker in comparison_markers):
         return "comparison"
+
+    if any(marker in normalized_question for marker in summary_markers):
+        return "summary"
 
     return "general"
 
@@ -40,11 +61,7 @@ def analyze_query(question: str) -> QueryAnalysis:
         )
 
     question_type = classify_question_type(normalized_question)
-    reason = (
-        "comparison question, use retrieval"
-        if question_type == "comparison"
-        else "normal knowledge question, use retrieval"
-    )
+    reason = build_reason(question_type)
 
     return QueryAnalysis(
         original_question=question,

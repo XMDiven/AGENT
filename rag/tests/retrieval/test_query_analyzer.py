@@ -29,3 +29,13 @@ def test_analyze_query_classifies_comparison_question() -> None:
     assert result.needs_retrieval is True
     assert result.reason == "comparison question, use retrieval"
     assert result.question_type == "comparison"
+
+
+def test_analyze_query_classifies_summary_question() -> None:
+    result = analyze_query("请总结 LangChain 的用途")
+
+    assert result.original_question == "请总结 LangChain 的用途"
+    assert result.normalized_question == "请总结 LangChain 的用途"
+    assert result.needs_retrieval is True
+    assert result.reason == "summary question, use retrieval"
+    assert result.question_type == "summary"

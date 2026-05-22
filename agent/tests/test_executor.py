@@ -46,6 +46,24 @@ def test_execute_plan_runs_fallback_tool() -> None:
     }
 
 
+def test_execute_plan_runs_summary_tool() -> None:
+    plan = AgentPlan(
+        tool=get_tool("summary_tool"),
+        reason="question asks for summarization",
+    )
+
+    result = execute_plan(
+        plan,
+        tool_input={"text": "  LangChain   helps build LLM apps.  "},
+    )
+
+    assert result.tool_name == "summary_tool"
+    assert result.status == "success"
+    assert result.output == {
+        "summary": "LangChain helps build LLM apps.",
+    }
+
+
 def test_execute_plan_returns_failed_result_for_unsupported_tool() -> None:
     plan = AgentPlan(
         tool=ToolDefinition(

@@ -11,7 +11,10 @@ AVAILABLE_TOOLS: dict[str, ToolDefinition] = {
         name="retrieval_tool",
         description="Retrieve relevant documents from the RAG knowledge base.",
     ),
-
+    "summary_tool": ToolDefinition(
+        name="summary_tool",
+        description="Summarize user-provided text.",
+    ),
     "fallback_tool": ToolDefinition(
         name="fallback_tool",
         description="Return a fallback response when no tool should run.",

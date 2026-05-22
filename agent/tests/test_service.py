@@ -86,6 +86,43 @@ def test_run_agent_uses_fallback_tool_when_retrieval_is_not_needed() -> None:
     ]
 
 
+def test_run_agent_uses_summary_tool_for_summary_question() -> None:
+    result = run_agent("请总结 LangChain 的用途")
+
+    assert result.plan.tool.name == "summary_tool"
+    assert result.tool_result.tool_name == "summary_tool"
+    assert result.tool_result.status == "success"
+    assert result.tool_result.output == {
+        "summary": "请总结 LangChain 的用途",
+    }
+    assert result.trace == [
+        {
+            "step": "analyze_question",
+            "status": "completed",
+            "detail": {
+                "needs_retrieval": True,
+                "question_type": "summary",
+                "reason": "summary question, use retrieval",
+            },
+        },
+        {
+            "step": "plan_tool",
+            "status": "completed",
+            "detail": {
+                "tool_name": "summary_tool",
+                "reason": "question asks for summarization",
+            },
+        },
+        {
+            "step": "execute_tool",
+            "status": "success",
+            "detail": {
+                "tool_name": "summary_tool",
+            },
+        },
+    ]
+
+
 def test_run_agent_marks_trace_failed_when_retrieval_tool_fails(
     monkeypatch,
 ) -> None:

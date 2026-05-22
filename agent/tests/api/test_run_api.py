@@ -88,6 +88,35 @@ def test_run_agent_endpoint_returns_success_when_retrieval_succeeds(
     }
 
 
+def test_run_agent_endpoint_uses_summary_tool_for_summary_question() -> None:
+    response = client.post(
+        "/agent/run",
+        json={
+            "question": "请总结 LangChain 的用途",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["plan"]["tool"]["name"] == "summary_tool"
+    assert data["tool_result"] == {
+        "tool_name": "summary_tool",
+        "status": "success",
+        "output": {
+            "summary": "请总结 LangChain 的用途",
+        },
+    }
+    assert data["trace"][-1] == {
+        "step": "execute_tool",
+        "status": "success",
+        "detail": {
+            "tool_name": "summary_tool",
+        },
+    }
+
+
 def test_run_agent_endpoint_returns_failed_tool_result_when_retrieval_fails(
     monkeypatch,
 ) -> None:

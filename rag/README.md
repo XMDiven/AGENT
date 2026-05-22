@@ -22,7 +22,7 @@
 ## 核心功能
 
 - 从 `data/raw` 摄入 Markdown 和 PDF 文件
-- 通过 `/documents/upload` 上传 Markdown 和 PDF 文件到本地语料目录
+- 通过 `/documents/upload` 和 `/documents/upload/batch` 上传 Markdown 和 PDF 文件到本地语料目录
 - 按稳定的来源元数据切分文档
 - 使用确定性的 chunk ID 将切片写入 Qdrant
 - 通过 `/ask` 接口提问
@@ -108,6 +108,14 @@ curl -X POST http://127.0.0.1:8001/documents/upload \
   -F "file=@data/raw/example.md;type=text/markdown"
 ```
 
+批量上传多个文件：
+
+```bash
+curl -X POST http://127.0.0.1:8001/documents/upload/batch \
+  -F "files=@data/raw/example.md;type=text/markdown" \
+  -F "files=@data/raw/example.pdf;type=application/pdf"
+```
+
 4. 启动 Qdrant 并构建索引：
 
 ```bash
@@ -173,6 +181,33 @@ curl -X POST http://127.0.0.1:8001/documents/upload \
   "filename": "example.pdf",
   "saved_path": "example.pdf",
   "content_type": "application/pdf"
+}
+```
+
+批量上传 Markdown 或 PDF 文件：
+
+```bash
+curl -X POST http://127.0.0.1:8001/documents/upload/batch \
+  -F "files=@data/raw/example.md;type=text/markdown" \
+  -F "files=@data/raw/example.pdf;type=application/pdf"
+```
+
+批量上传响应示例：
+
+```json
+{
+  "files": [
+    {
+      "filename": "example.md",
+      "saved_path": "example.md",
+      "content_type": "text/markdown"
+    },
+    {
+      "filename": "example.pdf",
+      "saved_path": "example.pdf",
+      "content_type": "application/pdf"
+    }
+  ]
 }
 ```
 
@@ -329,7 +364,7 @@ The project supports Markdown and PDF documents, saves source files either from 
 ## Core Features
 
 - Ingest Markdown and PDF files from `data/raw`
-- Upload Markdown and PDF files through `/documents/upload`
+- Upload Markdown and PDF files through `/documents/upload` and `/documents/upload/batch`
 - Chunk documents with stable source metadata
 - Store chunks in Qdrant with deterministic chunk IDs
 - Ask questions through `/ask`
@@ -415,6 +450,14 @@ curl -X POST http://127.0.0.1:8001/documents/upload \
   -F "file=@data/raw/example.md;type=text/markdown"
 ```
 
+Batch upload multiple files:
+
+```bash
+curl -X POST http://127.0.0.1:8001/documents/upload/batch \
+  -F "files=@data/raw/example.md;type=text/markdown" \
+  -F "files=@data/raw/example.pdf;type=application/pdf"
+```
+
 4. Start Qdrant and build the index:
 
 ```bash
@@ -483,7 +526,34 @@ Example upload response:
 }
 ```
 
-The upload endpoint only saves the file into `data/raw/`. Run `build_index` again after uploading new files so they become searchable in Qdrant.
+Batch upload Markdown or PDF files:
+
+```bash
+curl -X POST http://127.0.0.1:8001/documents/upload/batch \
+  -F "files=@data/raw/example.md;type=text/markdown" \
+  -F "files=@data/raw/example.pdf;type=application/pdf"
+```
+
+Example batch upload response:
+
+```json
+{
+  "files": [
+    {
+      "filename": "example.md",
+      "saved_path": "example.md",
+      "content_type": "text/markdown"
+    },
+    {
+      "filename": "example.pdf",
+      "saved_path": "example.pdf",
+      "content_type": "application/pdf"
+    }
+  ]
+}
+```
+
+The upload endpoints only save files into `data/raw/`. Run `build_index` again after uploading new files so they become searchable in Qdrant.
 
 Ask a question:
 

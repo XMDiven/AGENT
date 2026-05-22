@@ -9,6 +9,20 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 ALLOWED_EXTENSIONS = {".md", ".pdf"}
 
 
+async def save_upload_file(file: UploadFile, filename: str) -> dict[str, str]:
+    saved_path = config.RAW_DATA_DIR / filename
+
+    saved_path.parent.mkdir(parents=True, exist_ok=True)
+    content = await file.read()
+    saved_path.write_bytes(content)
+
+    return {
+        "filename": filename,
+        "saved_path": str(saved_path.relative_to(config.RAW_DATA_DIR)),
+        "content_type": file.content_type or "unknown",
+    }
+
+
 def validate_upload_file(file: UploadFile) -> str:
     filename = Path(file.filename or "").name
     suffix = Path(filename).suffix.lower()
@@ -25,14 +39,19 @@ def validate_upload_file(file: UploadFile) -> str:
 @router.post("/upload")
 async def upload_document(file: UploadFile = File(...)) -> dict[str, str]:
     filename = validate_upload_file(file)
-    saved_path = config.RAW_DATA_DIR / filename
+    return await save_upload_file(file, filename)
 
-    saved_path.parent.mkdir(parents=True, exist_ok=True)
-    content = await file.read()
-    saved_path.write_bytes(content)
+
+@router.post("/upload/batch")
+async def upload_documents(
+    files: list[UploadFile] = File(...),
+) -> dict[str, list[dict[str, str]]]:
+    filenames = [validate_upload_file(file) for file in files]
+
+    saved_files = []
+    for file, filename in zip(files, filenames, strict=True):
+        saved_files.append(await save_upload_file(file, filename))
 
     return {
-        "filename": filename,
-        "saved_path": str(saved_path.relative_to(config.RAW_DATA_DIR)),
-        "content_type": file.content_type or "unknown",
+        "files": saved_files,
     }

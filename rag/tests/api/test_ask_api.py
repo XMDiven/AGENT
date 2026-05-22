@@ -1,9 +1,14 @@
+import json
 from unittest.mock import Mock
 
 import pytest
 from fastapi.testclient import TestClient
 
 from rag_app.app.routers import ask as ask_router
+
+
+def parse_ndjson(text: str) -> list[dict]:
+    return [json.loads(line) for line in text.splitlines() if line]
 
 
 def test_ask_returns_answer_and_sources(
@@ -37,3 +42,59 @@ def test_ask_returns_422_when_question_is_missing(client: TestClient) -> None:
     response = client.post("/ask", json={})
 
     assert response.status_code == 422
+
+
+def test_ask_stream_returns_ndjson_events(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected_events = [
+        {
+            "type": "answer_delta",
+            "content": "LangChain 是",
+        },
+        {
+            "type": "answer_delta",
+            "content": "一个 LLM 应用框架。",
+        },
+        {
+            "type": "sources",
+            "sources": [
+                {
+                    "source": "data/raw/langchain-docs.md",
+                    "section_path": "Introduction > Overview",
+                    "snippet": "LangChain is a framework.",
+                }
+            ],
+        },
+        {
+            "type": "trace",
+            "trace": [
+                {
+                    "step": "generate_answer",
+                    "status": "completed",
+                    "detail": {"streaming": True},
+                }
+            ],
+        },
+        {
+            "type": "done",
+        },
+    ]
+
+    mock_stream_ask_question = Mock(return_value=iter(expected_events))
+    monkeypatch.setattr(
+        ask_router,
+        "stream_ask_question",
+        mock_stream_ask_question,
+    )
+
+    response = client.post(
+        "/ask/stream",
+        json={"question": "LangChain 是什么？"},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/x-ndjson")
+    assert parse_ndjson(response.text) == expected_events
+    mock_stream_ask_question.assert_called_once_with("LangChain 是什么？")

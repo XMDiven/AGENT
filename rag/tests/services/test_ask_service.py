@@ -3,7 +3,11 @@ from unittest.mock import Mock
 from langchain_core.documents import Document
 
 from rag_app.config import config
-from rag_app.services.ask_service import ask_question, apply_retrieval_strategy
+from rag_app.services.ask_service import (
+    apply_retrieval_strategy,
+    ask_question,
+    stream_ask_question,
+)
 
 
 def test_ask_question_plans_comparison_retrieval(monkeypatch) -> None:
@@ -307,6 +311,120 @@ def test_ask_question_returns_fallback_when_no_documents(monkeypatch) -> None:
         ],
     }
     mock_retriever.invoke.assert_called_once_with("一个文档里完全没有的问题")
+
+
+def test_stream_ask_question_streams_answer_chunks(monkeypatch) -> None:
+    documents = [
+        Document(
+            page_content="LangChain is a framework for developing applications.",
+            metadata={
+                "source": "data/raw/langchain-docs.md",
+                "section_path": "Introduction > Overview",
+            },
+        )
+    ]
+
+    mock_retriever = Mock()
+    mock_retriever.invoke.return_value = documents
+    mock_stream_answer = Mock(return_value=iter(["LangChain 是", "一个框架。"]))
+
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_retriever",
+        lambda top_k=None: mock_retriever,
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.format_context",
+        lambda docs: "formatted context",
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_client",
+        lambda: "fake-llm",
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_qa_prompt",
+        lambda: "fake-prompt",
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.stream_answer",
+        mock_stream_answer,
+    )
+
+    events = list(stream_ask_question("LangChain 是什么？"))
+
+    assert events[:2] == [
+        {
+            "type": "answer_delta",
+            "content": "LangChain 是",
+        },
+        {
+            "type": "answer_delta",
+            "content": "一个框架。",
+        },
+    ]
+    assert events[-3:] == [
+        {
+            "type": "sources",
+            "sources": [
+                {
+                    "source": "data/raw/langchain-docs.md",
+                    "section_path": "Introduction > Overview",
+                    "snippet": "LangChain is a framework for developing applications.",
+                }
+            ],
+        },
+        {
+            "type": "trace",
+            "trace": [
+                {
+                    "step": "query_analysis",
+                    "status": "completed",
+                    "detail": {
+                        "normalized_question": "LangChain 是什么？",
+                        "needs_retrieval": True,
+                        "reason": "normal knowledge question, use retrieval",
+                        "question_type": "general",
+                    },
+                },
+                {
+                    "step": "retrieval_planning",
+                    "status": "completed",
+                    "detail": {
+                        "question_type": "general",
+                        "retrieval_strategy": "standard_retrieval",
+                        "retrieval_query": "LangChain 是什么？",
+                        "top_k": config.RETRIEVAL_TOP_K,
+                        "reason": "general knowledge questions use standard retrieval",
+                    },
+                },
+                {
+                    "step": "retrieval",
+                    "status": "completed",
+                    "detail": {
+                        "retrieval_strategy": "standard_retrieval",
+                        "retrieval_query": "LangChain 是什么？",
+                        "top_k": config.RETRIEVAL_TOP_K,
+                        "document_count": 1,
+                        "retrieved_sources": ["data/raw/langchain-docs.md"],
+                    },
+                },
+                {
+                    "step": "generate_answer",
+                    "status": "completed",
+                    "detail": {"streaming": True},
+                },
+            ],
+        },
+        {
+            "type": "done",
+        },
+    ]
+    mock_stream_answer.assert_called_once_with(
+        question="LangChain 是什么？",
+        context="formatted context",
+        prompt="fake-prompt",
+        llm="fake-llm",
+    )
+    mock_retriever.invoke.assert_called_once_with("LangChain 是什么？")
 
 
 def test_ask_question_skips_retrieval_when_question_is_empty(monkeypatch) -> None:

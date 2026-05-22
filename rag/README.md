@@ -8,7 +8,7 @@
 原始文档 -> 摄入 -> 切分 -> 向量嵌入 -> Qdrant 检索 -> LLM 生成回答 -> 引用来源
 ```
 
-项目支持 Markdown 和 PDF 文档，能够通过本地目录或上传接口保存语料，构建 Qdrant 向量索引，提供 FastAPI `/ask` 问答接口，并包含轻量级评估脚本，用于检查检索质量和最终回答质量。
+项目支持 Markdown 和 PDF 文档，能够通过本地目录或上传接口保存语料，构建 Qdrant 向量索引，提供 FastAPI `/ask` 问答接口和 `/ask/stream` 流式问答接口，并包含轻量级评估脚本，用于检查检索质量和最终回答质量。
 
 ## 技术栈
 
@@ -25,7 +25,7 @@
 - 通过 `/documents/upload` 和 `/documents/upload/batch` 上传 Markdown 和 PDF 文件到本地语料目录
 - 按稳定的来源元数据切分文档
 - 使用确定性的 chunk ID 将切片写入 Qdrant
-- 通过 `/ask` 接口提问
+- 通过 `/ask` 接口提问，或通过 `/ask/stream` 流式接收生成内容
 - 返回带结构化来源引用的 grounded answer
 - 使用 golden source cases 评估检索结果
 - 评估最终回答的基本内容、来源契约和回归风险
@@ -221,6 +221,14 @@ curl -X POST http://127.0.0.1:8001/ask \
   -d '{"question":"What does retrieval augmented generation combine?"}'
 ```
 
+流式提问：
+
+```bash
+curl -N -X POST http://127.0.0.1:8001/ask/stream \
+  -H "Content-Type: application/json" \
+  -d '{"question":"What does retrieval augmented generation combine?"}'
+```
+
 响应包含：
 
 - `answer`：带编号引用的生成回答，例如 `[1]`
@@ -281,6 +289,15 @@ curl -X POST http://127.0.0.1:8001/ask \
     }
   ]
 }
+```
+
+流式响应使用 NDJSON，每行是一个事件：
+
+```jsonl
+{"type":"answer_delta","content":"RAG combines retrieval with generation"}
+{"type":"sources","sources":[{"source":"data/raw/rag-paper.pdf","section_path":"unknown","snippet":"..."}]}
+{"type":"trace","trace":[{"step":"generate_answer","status":"completed","detail":{"streaming":true}}]}
+{"type":"done"}
 ```
 
 ## 验证
@@ -350,7 +367,7 @@ This repository is a learning-focused Retrieval-Augmented Generation (RAG) proje
 raw documents -> ingestion -> chunking -> embeddings -> Qdrant retrieval -> LLM answer -> cited sources
 ```
 
-The project supports Markdown and PDF documents, saves source files either from the local corpus directory or through an upload endpoint, builds a Qdrant vector index, exposes a FastAPI `/ask` endpoint, and includes lightweight evaluation scripts for both retrieval quality and final answer output quality.
+The project supports Markdown and PDF documents, saves source files either from the local corpus directory or through an upload endpoint, builds a Qdrant vector index, exposes FastAPI `/ask` and `/ask/stream` endpoints, and includes lightweight evaluation scripts for both retrieval quality and final answer output quality.
 
 ## Tech Stack
 
@@ -367,7 +384,7 @@ The project supports Markdown and PDF documents, saves source files either from 
 - Upload Markdown and PDF files through `/documents/upload` and `/documents/upload/batch`
 - Chunk documents with stable source metadata
 - Store chunks in Qdrant with deterministic chunk IDs
-- Ask questions through `/ask`
+- Ask questions through `/ask`, or stream generated content through `/ask/stream`
 - Return grounded answers with structured source citations
 - Evaluate retrieval with golden source cases
 - Evaluate final answer output for basic answer and source contract regressions
@@ -563,6 +580,14 @@ curl -X POST http://127.0.0.1:8001/ask \
   -d '{"question":"What does retrieval augmented generation combine?"}'
 ```
 
+Ask a streaming question:
+
+```bash
+curl -N -X POST http://127.0.0.1:8001/ask/stream \
+  -H "Content-Type: application/json" \
+  -d '{"question":"What does retrieval augmented generation combine?"}'
+```
+
 The response contains:
 
 - `answer`: the generated answer with numbered citations such as `[1]`
@@ -623,6 +648,15 @@ Example response:
     }
   ]
 }
+```
+
+The streaming response uses NDJSON, with one event per line:
+
+```jsonl
+{"type":"answer_delta","content":"RAG combines retrieval with generation"}
+{"type":"sources","sources":[{"source":"data/raw/rag-paper.pdf","section_path":"unknown","snippet":"..."}]}
+{"type":"trace","trace":[{"step":"generate_answer","status":"completed","detail":{"streaming":true}}]}
+{"type":"done"}
 ```
 
 ## Verification

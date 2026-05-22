@@ -1,9 +1,10 @@
+from collections.abc import Iterator
 from typing import Any
 
 from langchain_core.documents import Document
 
 from rag_app.config import config
-from rag_app.generation.answer_generator import generate_answer
+from rag_app.generation.answer_generator import generate_answer, stream_answer
 from rag_app.generation.context_formatter import format_context
 from rag_app.generation.qa_prompt import get_qa_prompt
 from rag_app.infrastructure.llm_client import get_client
@@ -237,3 +238,136 @@ def ask_question(question: str) -> dict[str, Any]:
         "sources": build_sources(documents),
         "trace": trace,
     }
+
+
+def stream_ask_question(question: str) -> Iterator[dict[str, Any]]:
+    trace: list[dict[str, Any]] = []
+    analysis = analyze_query(question)
+
+    trace.append(
+        build_trace_item(
+            step="query_analysis",
+            status="completed",
+            detail={
+                "normalized_question": analysis.normalized_question,
+                "needs_retrieval": analysis.needs_retrieval,
+                "reason": analysis.reason,
+                "question_type": analysis.question_type,
+            },
+        )
+    )
+
+    retrieval_plan = plan_retrieval(analysis)
+
+    trace.append(
+        build_trace_item(
+            step="retrieval_planning",
+            status="completed",
+            detail={
+                "question_type": analysis.question_type,
+                "retrieval_strategy": retrieval_plan.retrieval_strategy,
+                "retrieval_query": retrieval_plan.retrieval_query,
+                "top_k": retrieval_plan.top_k,
+                "reason": retrieval_plan.reason,
+            },
+        )
+    )
+
+    if not analysis.needs_retrieval:
+        trace.append(
+            build_trace_item(
+                step="retrieval",
+                status="skipped",
+                detail={
+                    "retrieval_strategy": retrieval_plan.retrieval_strategy,
+                    "retrieval_query": retrieval_plan.retrieval_query,
+                    "top_k": retrieval_plan.top_k,
+                    "reason": retrieval_plan.reason,
+                },
+            )
+        )
+
+        yield {"type": "answer_delta", "content": config.FALLBACK_ANSWER}
+        yield {"type": "sources", "sources": []}
+        yield {"type": "trace", "trace": trace}
+        yield {"type": "done"}
+        return
+
+    retriever = get_retriever(top_k=retrieval_plan.top_k)
+    documents = retriever.invoke(retrieval_plan.retrieval_query)
+
+    documents = apply_retrieval_strategy(
+        documents=documents,
+        retrieval_strategy=retrieval_plan.retrieval_strategy,
+    )
+
+    trace.append(
+        build_trace_item(
+            step="retrieval",
+            detail={
+                "retrieval_strategy": retrieval_plan.retrieval_strategy,
+                "retrieval_query": retrieval_plan.retrieval_query,
+                "top_k": retrieval_plan.top_k,
+                "document_count": len(documents),
+                "retrieved_sources": build_retrieved_sources(documents),
+            },
+        )
+    )
+
+    if not documents:
+        yield {"type": "answer_delta", "content": config.FALLBACK_ANSWER}
+        yield {"type": "sources", "sources": []}
+        yield {"type": "trace", "trace": trace}
+        yield {"type": "done"}
+        return
+
+    try:
+        context = format_context(documents)
+        llm = get_client()
+        prompt = get_qa_prompt()
+
+        for chunk in stream_answer(
+            question=analysis.normalized_question,
+            context=context,
+            prompt=prompt,
+            llm=llm,
+        ):
+            yield {
+                "type": "answer_delta",
+                "content": chunk,
+            }
+
+        trace.append(
+            build_trace_item(
+                step="generate_answer",
+                status="completed",
+                detail={"streaming": True},
+            )
+        )
+
+        yield {"type": "sources", "sources": build_sources(documents)}
+        yield {"type": "trace", "trace": trace}
+        yield {"type": "done"}
+        return
+
+    except Exception as exc:
+        trace.append(
+            build_trace_item(
+                step="generate_answer",
+                status="failed",
+                detail={
+                    "streaming": True,
+                    "error_type": type(exc).__name__,
+                },
+            )
+        )
+
+        yield {
+            "type": "error",
+            "error_type": type(exc).__name__,
+            "message": config.FALLBACK_ANSWER,
+        }
+        yield {"type": "sources", "sources": build_sources(documents)}
+        yield {"type": "trace", "trace": trace}
+        yield {"type": "done"}
+        return

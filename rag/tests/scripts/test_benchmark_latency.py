@@ -23,6 +23,20 @@ def test_run_case_records_duration_and_result_metadata(monkeypatch) -> None:
                     "source": "data/raw/qdrant-docs.md",
                 },
             ],
+            "trace": [
+                {
+                    "step": "retrieval",
+                    "detail": {
+                        "duration_seconds": 0.12,
+                    },
+                },
+                {
+                    "step": "generate_answer",
+                    "detail": {
+                        "duration_seconds": 2.22,
+                    },
+                },
+            ],
         },
     )
 
@@ -36,10 +50,27 @@ def test_run_case_records_duration_and_result_metadata(monkeypatch) -> None:
     assert result == {
         "case_id": "rag_definition",
         "question": "What is RAG?",
-        "duration_seconds": 2.34,
+        "total_duration_seconds": 2.34,
+        "retrieval_duration_seconds": 0.12,
+        "generation_duration_seconds": 2.22,
         "answer_length": len("RAG answer"),
         "source_count": 2,
     }
+
+
+def test_get_trace_duration_returns_zero_when_step_has_no_duration() -> None:
+    result = {
+        "trace": [
+            {
+                "step": "generate_answer",
+                "detail": {
+                    "attempt": 1,
+                },
+            }
+        ]
+    }
+
+    assert benchmark_latency.get_trace_duration(result, "generate_answer") == 0.0
 
 
 def test_run_benchmark_summarizes_case_durations(monkeypatch) -> None:
@@ -47,14 +78,18 @@ def test_run_benchmark_summarizes_case_durations(monkeypatch) -> None:
         {
             "case_id": "case_1",
             "question": "Question 1",
-            "duration_seconds": 1.0,
+            "total_duration_seconds": 1.0,
+            "retrieval_duration_seconds": 0.1,
+            "generation_duration_seconds": 0.9,
             "answer_length": 10,
             "source_count": 1,
         },
         {
             "case_id": "case_2",
             "question": "Question 2",
-            "duration_seconds": 3.0,
+            "total_duration_seconds": 3.0,
+            "retrieval_duration_seconds": 0.2,
+            "generation_duration_seconds": 2.8,
             "answer_length": 20,
             "source_count": 2,
         },

@@ -30,6 +30,15 @@ BENCHMARK_CASES: tuple[BenchmarkCase, ...] = (
 )
 
 
+def get_trace_duration(result: dict[str, Any], step: str) -> float:
+    for item in result.get("trace", []):
+        if item.get("step") == step:
+            detail = item.get("detail", {})
+            return float(detail.get("duration_seconds", 0.0))
+
+    return 0.0
+
+
 def run_case(case: BenchmarkCase) -> dict[str, Any]:
     start = perf_counter()
     result = ask_question(case.question)
@@ -38,7 +47,9 @@ def run_case(case: BenchmarkCase) -> dict[str, Any]:
     return {
         "case_id": case.case_id,
         "question": case.question,
-        "duration_seconds": round(duration_seconds, 2),
+        "total_duration_seconds": round(duration_seconds, 2),
+        "retrieval_duration_seconds": get_trace_duration(result, "retrieval"),
+        "generation_duration_seconds": get_trace_duration(result, "generate_answer"),
         "answer_length": len(result.get("answer", "")),
         "source_count": len(result.get("sources", [])),
     }
@@ -46,7 +57,7 @@ def run_case(case: BenchmarkCase) -> dict[str, Any]:
 
 def run_benchmark() -> dict[str, Any]:
     results: list[dict[str, Any]] = [run_case(case) for case in BENCHMARK_CASES]
-    durations = [result["duration_seconds"] for result in results]
+    durations = [result["total_duration_seconds"] for result in results]
 
     return {
         "total_cases": len(results),
@@ -67,10 +78,9 @@ def main() -> None:
     print()
 
     for case in report["cases"]:
-        print(f"{case['case_id']}: {case['duration_seconds']}s")
-        print(f"question: {case['question']}")
-        print(f"answer_length: {case['answer_length']}")
-        print(f"source_count: {case['source_count']}")
+        print(f"{case['case_id']}: {case['total_duration_seconds']}s")
+        print(f"retrieval: {case['retrieval_duration_seconds']}s")
+        print(f"generation: {case['generation_duration_seconds']}s")
         print()
 
 

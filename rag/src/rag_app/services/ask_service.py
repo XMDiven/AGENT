@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from time import perf_counter
 from typing import Any
 
 from langchain_core.documents import Document
@@ -149,9 +150,12 @@ def ask_question(question: str) -> dict[str, Any]:
             "sources": [],
             "trace": trace,
         }
+    retrieval_start = perf_counter()
 
     retriever = get_retriever(top_k=retrieval_plan.top_k)
     documents = retriever.invoke(retrieval_plan.retrieval_query)
+
+    retrieval_duration_seconds = perf_counter() - retrieval_start
 
     documents = apply_retrieval_strategy(
         documents=documents,
@@ -167,6 +171,7 @@ def ask_question(question: str) -> dict[str, Any]:
                 "top_k": retrieval_plan.top_k,
                 "document_count": len(documents),
                 "retrieved_sources": build_retrieved_sources(documents),
+                "duration_seconds": round(retrieval_duration_seconds, 2),
             },
         )
     )
@@ -183,6 +188,8 @@ def ask_question(question: str) -> dict[str, Any]:
 
     for attempt in range(1, max_attempts + 1):
         try:
+            generation_start = perf_counter()
+
             context = format_context(documents)
             llm = get_client()
             prompt = get_qa_prompt()
@@ -193,11 +200,19 @@ def ask_question(question: str) -> dict[str, Any]:
                 llm=llm,
             )
 
+            generation_duration_seconds = perf_counter() - generation_start
+
             trace.append(
                 build_trace_item(
                     step="generate_answer",
                     status="completed",
-                    detail={"attempt": attempt},
+                    detail={
+                        "attempt": attempt,
+                        "duration_seconds": round(
+                            generation_duration_seconds,
+                            2,
+                        ),
+                    },
                 )
             )
 

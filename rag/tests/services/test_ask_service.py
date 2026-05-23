@@ -257,6 +257,7 @@ def test_ask_question_retries_answer_generation_once(monkeypatch) -> None:
         "status": "completed",
         "detail": {
             "attempt": 2,
+            "duration_seconds": 0.0,
         },
     }
 
@@ -306,6 +307,7 @@ def test_ask_question_returns_fallback_when_no_documents(monkeypatch) -> None:
                     "top_k": config.RETRIEVAL_TOP_K,
                     "document_count": 0,
                     "retrieved_sources": [],
+                    "duration_seconds": 0.0,
                 },
             },
         ],

@@ -22,21 +22,21 @@ Measured duration includes:
 
 ## Results
 
-| case_id | duration_seconds | answer_length | source_count |
+| case_id | total_duration_seconds | retrieval_duration_seconds | generation_duration_seconds |
 |---|---:|---:|---:|
-| rag_definition | 21.18 | 270 | 7 |
-| qdrant_usage | 18.47 | 359 | 7 |
-| langchain_usage | 27.42 | 330 | 7 |
+| rag_definition | 23.03 | 1.15 | 21.87 |
+| qdrant_usage | 29.08 | 0.24 | 28.83 |
+| langchain_usage | 26.29 | 0.28 | 26.00 |
 
 ## Summary
 
 - Total cases: 3
-- Average duration: 22.36 seconds
-- Max duration: 27.42 seconds
-- Min duration: 18.47 seconds
+- Average duration: 26.13 seconds
+- Max duration: 29.08 seconds
+- Min duration: 23.03 seconds
 
 ## Notes
 
 This result is slow for a user-facing question-answering API and should not be used to claim a 2-second average latency.
 
-The benchmark measures the full online RAG path, so LLM generation latency is included. Further optimization should split retrieval time and generation time before changing retrieval parameters.
+The benchmark now records retrieval and generation durations separately. Current results show that latency is dominated by LLM generation, while vector retrieval is below 1.2 seconds in these cases.

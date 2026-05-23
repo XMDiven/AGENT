@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import Any
 
-from agent_app.executor import ToolResult
-from agent_app.planner import AgentPlan
+from agent_app.orchestration.executor import ToolResult
+from agent_app.orchestration.planner import AgentPlan
 
 
 @dataclass(frozen=True)

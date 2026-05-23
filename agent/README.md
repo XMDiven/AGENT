@@ -29,14 +29,24 @@ src/agent_app/
     routers/health.py  # GET /health 健康检查接口
     routers/run.py     # POST /agent/run 接口
   schemas/run.py    # Agent API 请求和响应结构
-  tools.py           # 工具注册表
-  planner.py         # 根据问题分析结果选择工具
-  executor.py        # 执行工具并包装 ToolResult
-  retrieval_tool.py  # 调用 RAG 问答服务的工具适配层
-  summary_tool.py    # 本地摘要工具
-  state.py           # Agent 内部状态对象
+  orchestration/
+    planner.py       # 根据问题分析结果选择工具
+    executor.py      # 执行工具并包装 ToolResult
+    state.py         # Agent 内部状态对象
+  tools/
+    registry.py      # 工具注册表
+    retrieval.py     # 调用 RAG 问答服务的工具适配层
+    summary.py       # 本地摘要工具
   service.py         # Agent 对外统一入口 run_agent(question)
 ```
+
+目录边界：
+
+- `app/` 只处理 HTTP 入口。
+- `schemas/` 只放 API 请求和响应结构。
+- `service.py` 负责串起一次 Agent run。
+- `orchestration/` 放规划、执行和状态流转。
+- `tools/` 放工具注册表和具体工具适配层。
 
 ## 执行流程
 

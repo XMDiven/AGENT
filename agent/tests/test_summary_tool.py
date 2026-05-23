@@ -1,4 +1,4 @@
-from agent_app.summary_tool import run_summary_tool
+from agent_app.tools.summary import run_summary_tool
 
 
 def test_run_summary_tool_normalizes_whitespace() -> None:

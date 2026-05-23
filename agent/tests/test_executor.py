@@ -1,6 +1,6 @@
-from agent_app.executor import execute_plan
-from agent_app.planner import AgentPlan
-from agent_app.tools import ToolDefinition, get_tool
+from agent_app.orchestration.executor import execute_plan
+from agent_app.orchestration.planner import AgentPlan
+from agent_app.tools.registry import ToolDefinition, get_tool
 
 
 def test_execute_plan_runs_retrieval_tool(monkeypatch) -> None:
@@ -16,7 +16,7 @@ def test_execute_plan_runs_retrieval_tool(monkeypatch) -> None:
     }
 
     monkeypatch.setattr(
-        "agent_app.executor.run_retrieval_tool",
+        "agent_app.orchestration.executor.run_retrieval_tool",
         lambda question: expected,
     )
 
@@ -128,7 +128,7 @@ def test_execute_plan_retries_retrieval_tool_until_success(monkeypatch) -> None:
         return expected
 
     monkeypatch.setattr(
-        "agent_app.executor.run_retrieval_tool",
+        "agent_app.orchestration.executor.run_retrieval_tool",
         flaky_retrieval_tool,
     )
 
@@ -168,7 +168,7 @@ def test_execute_plan_returns_failed_result_when_retrieval_tool_fails(
         raise RuntimeError("rag unavailable")
 
     monkeypatch.setattr(
-        "agent_app.executor.run_retrieval_tool",
+        "agent_app.orchestration.executor.run_retrieval_tool",
         raise_error,
     )
 

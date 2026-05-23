@@ -1,4 +1,4 @@
-from agent_app.planner import plan_tool
+from agent_app.orchestration.planner import plan_tool
 
 
 def test_plan_tool_selects_fallback_tool_for_empty_question() -> None:

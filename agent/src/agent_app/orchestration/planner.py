@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from agent_app.tools import ToolDefinition, get_tool
+from agent_app.tools.registry import ToolDefinition, get_tool
 
 
 @dataclass(frozen=True)

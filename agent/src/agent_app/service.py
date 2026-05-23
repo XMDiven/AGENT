@@ -3,9 +3,9 @@ from typing import Any
 
 from rag_app.retrieval.query_analyzer import analyze_query
 
-from agent_app.executor import ToolResult, execute_plan
-from agent_app.planner import AgentPlan, plan_tool
-from agent_app.state import AgentState
+from agent_app.orchestration.executor import ToolResult, execute_plan
+from agent_app.orchestration.planner import AgentPlan, plan_tool
+from agent_app.orchestration.state import AgentState
 
 
 @dataclass(frozen=True)

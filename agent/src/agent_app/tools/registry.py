@@ -6,6 +6,7 @@ class ToolDefinition:
     name: str
     description: str
 
+
 AVAILABLE_TOOLS: dict[str, ToolDefinition] = {
     "retrieval_tool": ToolDefinition(
         name="retrieval_tool",

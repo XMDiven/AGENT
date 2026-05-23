@@ -64,7 +64,7 @@ def test_run_agent_endpoint_returns_success_when_retrieval_succeeds(
     }
 
     monkeypatch.setattr(
-        "agent_app.executor.run_retrieval_tool",
+        "agent_app.orchestration.executor.run_retrieval_tool",
         lambda question: expected,
     )
 
@@ -154,7 +154,7 @@ def test_run_agent_endpoint_returns_failed_tool_result_when_retrieval_fails(
         raise RuntimeError("rag unavailable")
 
     monkeypatch.setattr(
-        "agent_app.executor.run_retrieval_tool",
+        "agent_app.orchestration.executor.run_retrieval_tool",
         raise_error,
     )
 

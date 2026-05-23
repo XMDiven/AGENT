@@ -1,6 +1,6 @@
 import pytest
 
-from agent_app.tools import get_tool, list_tools
+from agent_app.tools.registry import get_tool, list_tools
 
 
 def test_list_tools_returns_registered_tools() -> None:

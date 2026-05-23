@@ -6,7 +6,7 @@
 - 运行环境：本地开发环境
 - 向量数据库：Qdrant
 - 默认运行命令：`python -m rag_app.scripts.benchmark_latency`
-- Top-K 临时覆盖命令：`python -m rag_app.scripts.benchmark_latency --top-k 3`
+- Top-K 对比命令：`RETRIEVAL_TOP_K=3 python -m rag_app.scripts.benchmark_latency`
 - 测量范围：完整 `ask_question()` 在线问答链路
 
 ## 测试方法

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import argparse
 from dataclasses import dataclass
 from statistics import mean
 from time import perf_counter
@@ -57,24 +56,13 @@ def run_case(case: BenchmarkCase) -> dict[str, Any]:
     }
 
 
-def run_benchmark(top_k: int | None = None) -> dict[str, Any]:
-    original_top_k = config.RETRIEVAL_TOP_K
-    effective_top_k = top_k if top_k is not None else original_top_k
-
-    try:
-        if top_k is not None:
-            config.RETRIEVAL_TOP_K = top_k
-
-        results: list[dict[str, Any]] = [
-            run_case(case) for case in BENCHMARK_CASES
-        ]
-        durations = [result["total_duration_seconds"] for result in results]
-    finally:
-        config.RETRIEVAL_TOP_K = original_top_k
+def run_benchmark() -> dict[str, Any]:
+    results: list[dict[str, Any]] = [run_case(case) for case in BENCHMARK_CASES]
+    durations = [result["total_duration_seconds"] for result in results]
 
     return {
         "total_cases": len(results),
-        "top_k": effective_top_k,
+        "top_k": config.RETRIEVAL_TOP_K,
         "average_duration_seconds": round(mean(durations), 2),
         "max_duration_seconds": round(max(durations), 2),
         "min_duration_seconds": round(min(durations), 2),
@@ -82,22 +70,8 @@ def run_benchmark(top_k: int | None = None) -> dict[str, Any]:
     }
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Run the RAG latency benchmark.",
-    )
-    parser.add_argument(
-        "--top-k",
-        type=int,
-        default=None,
-        help="Temporarily override RETRIEVAL_TOP_K for this benchmark run.",
-    )
-    return parser.parse_args()
-
-
 def main() -> None:
-    args = parse_args()
-    report = run_benchmark(top_k=args.top_k)
+    report = run_benchmark()
 
     print("Latency benchmark summary")
     print(f"total cases: {report['total_cases']}")

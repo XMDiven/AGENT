@@ -1,29 +1,31 @@
-# Latency Benchmark
+# RAG 问答延迟 Benchmark
 
-## Environment
+## 测试环境
 
-- Date: 2026-05-23
-- Runtime: local development
-- Vector store: Qdrant
-- Entry point: `python -m rag_app.scripts.benchmark_latency`
-- Top-K override: `python -m rag_app.scripts.benchmark_latency --top-k 3`
-- Measurement scope: full `ask_question()` path
+- 测试日期：2026-05-23
+- 运行环境：本地开发环境
+- 向量数据库：Qdrant
+- 默认运行命令：`python -m rag_app.scripts.benchmark_latency`
+- Top-K 临时覆盖命令：`python -m rag_app.scripts.benchmark_latency --top-k 3`
+- 测量范围：完整 `ask_question()` 在线问答链路
 
-## Method
+## 测试方法
 
-The benchmark runs fixed questions through the online RAG question-answering flow.
+本 benchmark 使用固定问题集调用 RAG 在线问答流程。
 
-Measured duration includes:
+耗时统计包含：
 
-- query analysis
-- retrieval planning
-- vector retrieval
-- context formatting
-- LLM answer generation
+- 问题分析
+- 检索规划
+- 向量检索
+- 上下文格式化
+- LLM 回答生成
 
-## Results
+其中 `retrieval_duration_seconds` 来自 `retrieval` trace，`generation_duration_seconds` 来自 `generate_answer` trace，`total_duration_seconds` 是 benchmark 脚本外层统计的完整调用耗时。
 
-### Baseline: top_k = 7
+## 测试结果
+
+### 基线：top_k = 7
 
 | case_id | total_duration_seconds | retrieval_duration_seconds | generation_duration_seconds |
 |---|---:|---:|---:|
@@ -31,15 +33,15 @@ Measured duration includes:
 | qdrant_usage | 29.08 | 0.24 | 28.83 |
 | langchain_usage | 26.29 | 0.28 | 26.00 |
 
-Summary:
+汇总：
 
-- Total cases: 3
-- Top-K: 7
-- Average duration: 26.13 seconds
-- Max duration: 29.08 seconds
-- Min duration: 23.03 seconds
+- 测试问题数：3
+- Top-K：7
+- 平均耗时：26.13 秒
+- 最大耗时：29.08 秒
+- 最小耗时：23.03 秒
 
-### Experiment: top_k = 3
+### 对比实验：top_k = 3
 
 | case_id | total_duration_seconds | retrieval_duration_seconds | generation_duration_seconds |
 |---|---:|---:|---:|
@@ -47,18 +49,35 @@ Summary:
 | qdrant_usage | 18.40 | 0.24 | 18.15 |
 | langchain_usage | 22.08 | 0.55 | 21.52 |
 
-Summary:
+汇总：
 
-- Total cases: 3
-- Top-K: 3
-- Average duration: 25.05 seconds
-- Max duration: 34.66 seconds
-- Min duration: 18.40 seconds
+- 测试问题数：3
+- Top-K：3
+- 平均耗时：25.05 秒
+- 最大耗时：34.66 秒
+- 最小耗时：18.40 秒
 
-## Notes
+## 结论
 
-This result is slow for a user-facing question-answering API and should not be used to claim a 2-second average latency.
+当前结果对用户侧问答接口来说偏慢，不能用于宣称“平均 2 秒内响应”。
 
-The benchmark now records retrieval and generation durations separately. Current results show that latency is dominated by LLM generation in both runs, while vector retrieval stays below 2 seconds in these cases.
+两组结果都显示主要耗时来自 LLM 生成阶段，而不是向量检索阶段。向量检索在当前样本中均低于 2 秒，但 LLM 生成通常在 18 秒到 33 秒之间。
 
-Reducing Top-K from 7 to 3 did not produce a clear, stable latency improvement in this small run. The average total duration dropped from 26.13 seconds to 25.05 seconds, but `rag_definition` became slower. The next optimization should focus on generation-side controls, such as prompt/output length or context token budget, rather than retrieval speed.
+将 Top-K 从 7 降到 3 没有带来稳定、明确的延迟优化。平均总耗时从 26.13 秒降到 25.05 秒，但 `rag_definition` 这个 case 反而从 23.03 秒上升到 34.66 秒。
+
+因此，下一步优化不应优先继续调整检索参数，而应优先验证生成侧变量，例如：
+
+- 更快的 LLM 模型
+- 更短的 Prompt
+- 更严格的输出长度限制
+- 更小的上下文 token budget
+
+## 简历表述边界
+
+当前可以安全表述为：
+
+`设计 RAG latency benchmark，对完整问答链路进行分段耗时统计，并定位主要瓶颈来自 LLM 生成阶段。`
+
+当前不应表述为：
+
+`平均响应时延控制在 2 秒内。`

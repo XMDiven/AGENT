@@ -38,6 +38,9 @@ rag/.env
 # 包管理器本地锁文件
 agent/uv.lock
 
+# 本地数据采集脚本
+scripts/collect_rag_docs.py
+
 #杂项
 .DS_Store
 resume_alignment.md

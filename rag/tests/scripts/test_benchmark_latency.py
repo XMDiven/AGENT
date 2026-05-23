@@ -110,8 +110,39 @@ def test_run_benchmark_summarizes_case_durations(monkeypatch) -> None:
 
     assert report == {
         "total_cases": 2,
+        "top_k": benchmark_latency.config.RETRIEVAL_TOP_K,
         "average_duration_seconds": 2.0,
         "max_duration_seconds": 3.0,
         "min_duration_seconds": 1.0,
         "cases": fake_results,
     }
+
+
+def test_run_benchmark_temporarily_overrides_top_k(monkeypatch) -> None:
+    original_top_k = benchmark_latency.config.RETRIEVAL_TOP_K
+    fake_cases = (
+        BenchmarkCase(case_id="case_1", question="Question 1"),
+    )
+
+    def fake_run_case(case: BenchmarkCase) -> dict:
+        return {
+            "case_id": case.case_id,
+            "question": case.question,
+            "total_duration_seconds": float(
+                benchmark_latency.config.RETRIEVAL_TOP_K
+            ),
+            "retrieval_duration_seconds": 0.1,
+            "generation_duration_seconds": 0.9,
+            "answer_length": 10,
+            "source_count": benchmark_latency.config.RETRIEVAL_TOP_K,
+        }
+
+    monkeypatch.setattr(benchmark_latency, "BENCHMARK_CASES", fake_cases)
+    monkeypatch.setattr(benchmark_latency, "run_case", fake_run_case)
+
+    report = benchmark_latency.run_benchmark(top_k=3)
+
+    assert report["top_k"] == 3
+    assert report["average_duration_seconds"] == 3.0
+    assert report["cases"][0]["source_count"] == 3
+    assert benchmark_latency.config.RETRIEVAL_TOP_K == original_top_k

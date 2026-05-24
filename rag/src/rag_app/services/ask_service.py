@@ -185,11 +185,11 @@ def ask_question(question: str) -> dict[str, Any]:
 
     max_attempts = config.MAX_GENERATION_RETRY + 1
     last_error: Exception | None = None
+    last_generation_duration_seconds: float = 0.0
 
     for attempt in range(1, max_attempts + 1):
+        generation_start = perf_counter()
         try:
-            generation_start = perf_counter()
-
             context = format_context(documents)
             llm = get_client()
             prompt = get_qa_prompt()
@@ -224,6 +224,7 @@ def ask_question(question: str) -> dict[str, Any]:
 
         except Exception as exc:
             last_error = exc
+            last_generation_duration_seconds = perf_counter() - generation_start
             if attempt < max_attempts:
                 trace.append(
                     build_trace_item(
@@ -232,6 +233,10 @@ def ask_question(question: str) -> dict[str, Any]:
                         detail={
                             "attempt": attempt,
                             "error_type": type(exc).__name__,
+                            "duration_seconds": round(
+                                last_generation_duration_seconds,
+                                2,
+                            ),
                         },
                     )
                 )
@@ -244,6 +249,10 @@ def ask_question(question: str) -> dict[str, Any]:
                 detail={
                     "attempts": max_attempts,
                     "error_type": type(last_error).__name__,
+                    "duration_seconds": round(
+                        last_generation_duration_seconds,
+                        2,
+                    ),
                 },
             )
         )

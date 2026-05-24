@@ -34,6 +34,7 @@ def test_run_case_records_duration_and_result_metadata(monkeypatch) -> None:
                 },
                 {
                     "step": "generate_answer",
+                    "status": "completed",
                     "detail": {
                         "duration_seconds": 2.22,
                     },
@@ -55,16 +56,21 @@ def test_run_case_records_duration_and_result_metadata(monkeypatch) -> None:
         "total_duration_seconds": 2.34,
         "retrieval_duration_seconds": 0.12,
         "generation_duration_seconds": 2.22,
+        "generation_status": "completed",
+        "generation_error_type": "",
+        "answer_is_fallback": False,
+        "answer_preview": "RAG answer",
         "answer_length": len("RAG answer"),
         "source_count": 2,
     }
 
 
-def test_get_trace_duration_returns_zero_when_step_has_no_duration() -> None:
+def test_summarize_trace_step_returns_zero_when_step_has_no_duration() -> None:
     result = {
         "trace": [
             {
                 "step": "generate_answer",
+                "status": "completed",
                 "detail": {
                     "attempt": 1,
                 },
@@ -72,7 +78,46 @@ def test_get_trace_duration_returns_zero_when_step_has_no_duration() -> None:
         ]
     }
 
-    assert benchmark_latency.get_trace_duration(result, "generate_answer") == 0.0
+    assert benchmark_latency.summarize_trace_step(
+        result,
+        "generate_answer",
+    ) == {
+        "duration_seconds": 0.0,
+        "status": "completed",
+        "error_type": "",
+    }
+
+
+def test_summarize_trace_step_sums_duration_and_returns_latest_status() -> None:
+    result = {
+        "trace": [
+            {
+                "step": "generate_answer",
+                "status": "retrying",
+                "detail": {
+                    "duration_seconds": 1.2,
+                    "error_type": "TimeoutError",
+                },
+            },
+            {
+                "step": "generate_answer",
+                "status": "failed",
+                "detail": {
+                    "duration_seconds": 0.8,
+                    "error_type": "RuntimeError",
+                },
+            },
+        ]
+    }
+
+    assert benchmark_latency.summarize_trace_step(
+        result,
+        "generate_answer",
+    ) == {
+        "duration_seconds": 2.0,
+        "status": "failed",
+        "error_type": "RuntimeError",
+    }
 
 
 def test_run_benchmark_summarizes_case_durations(monkeypatch) -> None:
@@ -83,6 +128,10 @@ def test_run_benchmark_summarizes_case_durations(monkeypatch) -> None:
             "total_duration_seconds": 1.0,
             "retrieval_duration_seconds": 0.1,
             "generation_duration_seconds": 0.9,
+            "generation_status": "completed",
+            "generation_error_type": "",
+            "answer_is_fallback": False,
+            "answer_preview": "Answer 1",
             "answer_length": 10,
             "source_count": 1,
         },
@@ -92,6 +141,10 @@ def test_run_benchmark_summarizes_case_durations(monkeypatch) -> None:
             "total_duration_seconds": 3.0,
             "retrieval_duration_seconds": 0.2,
             "generation_duration_seconds": 2.8,
+            "generation_status": "completed",
+            "generation_error_type": "",
+            "answer_is_fallback": False,
+            "answer_preview": "Answer 2",
             "answer_length": 20,
             "source_count": 2,
         },

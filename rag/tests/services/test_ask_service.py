@@ -188,14 +188,13 @@ def test_ask_question_returns_fallback_when_answer_generation_fails(
             "snippet": "LangChain is a framework for developing applications.",
         }
     ]
-    assert result["trace"][-1] == {
-        "step": "generate_answer",
-        "status": "failed",
-        "detail": {
-            "attempts": config.MAX_GENERATION_RETRY + 1,
-            "error_type": "RuntimeError",
-        },
-    }
+    failed_trace = result["trace"][-1]
+
+    assert failed_trace["step"] == "generate_answer"
+    assert failed_trace["status"] == "failed"
+    assert failed_trace["detail"]["attempts"] == config.MAX_GENERATION_RETRY + 1
+    assert failed_trace["detail"]["error_type"] == "RuntimeError"
+    assert "duration_seconds" in failed_trace["detail"]
     mock_retriever.invoke.assert_called_once_with("LangChain 是什么？")
 
 
@@ -244,14 +243,13 @@ def test_ask_question_retries_answer_generation_once(monkeypatch) -> None:
 
     assert result["answer"] == "LangChain 是一个用于构建 LLM 应用的框架。"
     assert mock_generate_answer.call_count == 2
-    assert result["trace"][-2] == {
-        "step": "generate_answer",
-        "status": "retrying",
-        "detail": {
-            "attempt": 1,
-            "error_type": "RuntimeError",
-        },
-    }
+    retry_trace = result["trace"][-2]
+
+    assert retry_trace["step"] == "generate_answer"
+    assert retry_trace["status"] == "retrying"
+    assert retry_trace["detail"]["attempt"] == 1
+    assert retry_trace["detail"]["error_type"] == "RuntimeError"
+    assert "duration_seconds" in retry_trace["detail"]
     assert result["trace"][-1] == {
         "step": "generate_answer",
         "status": "completed",

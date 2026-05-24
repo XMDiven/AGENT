@@ -31,13 +31,28 @@ BENCHMARK_CASES: tuple[BenchmarkCase, ...] = (
 )
 
 
-def get_trace_duration(result: dict[str, Any], step: str) -> float:
-    for item in result.get("trace", []):
-        if item.get("step") == step:
-            detail = item.get("detail", {})
-            return float(detail.get("duration_seconds", 0.0))
+def summarize_trace_step(result: dict[str, Any], step: str) -> dict[str, Any]:
+    duration_seconds = 0.0
+    status = "missing"
+    error_type = ""
 
-    return 0.0
+    for item in result.get("trace", []):
+        if item.get("step") != step:
+            continue
+
+        status = str(item.get("status", "unknown"))
+
+        detail = item.get("detail", {})
+        duration_seconds += float(detail.get("duration_seconds", 0.0))
+
+        if detail.get("error_type"):
+            error_type = str(detail["error_type"])
+
+    return {
+        "duration_seconds": round(duration_seconds, 2),
+        "status": status,
+        "error_type": error_type,
+    }
 
 
 def run_case(case: BenchmarkCase) -> dict[str, Any]:
@@ -45,13 +60,27 @@ def run_case(case: BenchmarkCase) -> dict[str, Any]:
     result = ask_question(case.question)
     duration_seconds = perf_counter() - start
 
+    retrieval_summary = summarize_trace_step(result, "retrieval")
+    generation_summary = summarize_trace_step(result, "generate_answer")
+    answer = str(result.get("answer", ""))
+
+    generation_status = generation_summary["status"]
+
     return {
         "case_id": case.case_id,
         "question": case.question,
         "total_duration_seconds": round(duration_seconds, 2),
-        "retrieval_duration_seconds": get_trace_duration(result, "retrieval"),
-        "generation_duration_seconds": get_trace_duration(result, "generate_answer"),
-        "answer_length": len(result.get("answer", "")),
+        "retrieval_duration_seconds": retrieval_summary["duration_seconds"],
+        "generation_duration_seconds": generation_summary["duration_seconds"],
+        "generation_status": generation_status,
+        "generation_error_type": (
+            generation_summary["error_type"]
+            if generation_status == "failed"
+            else ""
+        ),
+        "answer_is_fallback": answer == config.FALLBACK_ANSWER,
+        "answer_preview": answer[:120],
+        "answer_length": len(answer),
         "source_count": len(result.get("sources", [])),
     }
 
@@ -79,12 +108,17 @@ def main() -> None:
     print(f"average duration: {report['average_duration_seconds']}s")
     print(f"max duration: {report['max_duration_seconds']}s")
     print(f"min duration: {report['min_duration_seconds']}s")
+
     print()
 
     for case in report["cases"]:
         print(f"{case['case_id']}: {case['total_duration_seconds']}s")
         print(f"retrieval: {case['retrieval_duration_seconds']}s")
         print(f"generation: {case['generation_duration_seconds']}s")
+        print(f"generation_status: {case['generation_status']}")
+        print(f"generation_error_type: {case['generation_error_type']}")
+        print(f"answer_is_fallback: {case['answer_is_fallback']}")
+        print(f"answer_preview: {case['answer_preview']}")
         print()
 
 

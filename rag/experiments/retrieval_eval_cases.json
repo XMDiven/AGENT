@@ -16,7 +16,7 @@
   },
   {
     "id": "rag_paper_definition",
-    "question": "What does retrieval augmented generation combine?",
+    "question": "In the original Retrieval-Augmented Generation paper, what does RAG combine?",
     "expected_source_contains": ["retrieval_augmented_generation_for_knowledge_intensive_nlp.pdf"]
   },
   {

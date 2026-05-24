@@ -25,7 +25,25 @@
 
 ## 测试结果
 
-### 基线：top_k = 7
+### 有效模型基线：kimi-k2.5
+
+本次有效 benchmark 使用 `kimi-k2.5`，所有 case 的 `generation_status` 均为 `completed`，`answer_is_fallback` 均为 `false`。
+
+| case_id | total_duration_seconds | retrieval_duration_seconds | generation_duration_seconds | generation_status | answer_is_fallback |
+|---|---:|---:|---:|---|---|
+| rag_definition | 16.52 | 0.24 | 16.27 | completed | false |
+| qdrant_usage | 32.62 | 0.24 | 32.38 | completed | false |
+| langchain_usage | 24.16 | 0.28 | 23.87 | completed | false |
+
+汇总：
+
+- 测试问题数：3
+- Top-K：7
+- 平均耗时：24.43 秒
+- 最大耗时：32.62 秒
+- 最小耗时：16.52 秒
+
+### 历史 Top-K 对比：top_k = 7
 
 | case_id | total_duration_seconds | retrieval_duration_seconds | generation_duration_seconds |
 |---|---:|---:|---:|
@@ -41,7 +59,7 @@
 - 最大耗时：29.08 秒
 - 最小耗时：23.03 秒
 
-### 对比实验：top_k = 3
+### 历史 Top-K 对比：top_k = 3
 
 | case_id | total_duration_seconds | retrieval_duration_seconds | generation_duration_seconds |
 |---|---:|---:|---:|
@@ -59,9 +77,9 @@
 
 ## 结论
 
-当前结果对用户侧问答接口来说偏慢，不能用于宣称“平均 2 秒内响应”。
+当前有效模型基线对用户侧问答接口来说偏慢，不能用于宣称“平均 2 秒内响应”。
 
-两组结果都显示主要耗时来自 LLM 生成阶段，而不是向量检索阶段。向量检索在当前样本中均低于 2 秒，但 LLM 生成通常在 18 秒到 33 秒之间。
+有效结果显示主要耗时来自 LLM 生成阶段，而不是向量检索阶段。使用 `kimi-k2.5` 时，向量检索在当前样本中均低于 1 秒，但 LLM 生成在 16 秒到 33 秒之间。
 
 将 Top-K 从 7 降到 3 没有带来稳定、明确的延迟优化。平均总耗时从 26.13 秒降到 25.05 秒，但 `rag_definition` 这个 case 反而从 23.03 秒上升到 34.66 秒。
 

@@ -17,9 +17,16 @@ def test_run_agent_endpoint_uses_fallback_tool_for_empty_question() -> None:
 
     data = response.json()
 
-    assert data["plan"]["tool"]["name"] == "fallback_tool"
-    assert data["tool_result"]["tool_name"] == "fallback_tool"
-    assert data["tool_result"]["status"] == "success"
+    assert "plan" not in data
+    assert "tool_result" not in data
+    assert data["answer"] == "No retrieval is needed for this question."
+    assert data["sources"] == []
+    assert data["selected_tool"] == "fallback_tool"
+    assert data["tool_status"] == "success"
+    assert data["tool_output"] == {
+        "answer": "No retrieval is needed for this question.",
+        "sources": [],
+    }
     assert data["trace"] == [
         {
             "step": "analyze_question",
@@ -79,18 +86,13 @@ def test_run_agent_endpoint_returns_success_when_retrieval_succeeds(
 
     data = response.json()
 
-    assert data["plan"]["tool"]["name"] == "retrieval_tool"
-    assert data["tool_result"] == {
-        "tool_name": "retrieval_tool",
-        "status": "success",
-        "output": expected,
-        "attempts": [
-            {
-                "attempt": 1,
-                "status": "success",
-            }
-        ],
-    }
+    assert "plan" not in data
+    assert "tool_result" not in data
+    assert data["answer"] == "RAG answer"
+    assert data["sources"] == []
+    assert data["selected_tool"] == "retrieval_tool"
+    assert data["tool_status"] == "success"
+    assert data["tool_output"] == expected
     assert data["trace"][-1] == {
         "step": "execute_tool",
         "status": "success",
@@ -118,19 +120,14 @@ def test_run_agent_endpoint_uses_summary_tool_for_summary_question() -> None:
 
     data = response.json()
 
-    assert data["plan"]["tool"]["name"] == "summary_tool"
-    assert data["tool_result"] == {
-        "tool_name": "summary_tool",
-        "status": "success",
-        "output": {
-            "summary": "请总结 LangChain 的用途",
-        },
-        "attempts": [
-            {
-                "attempt": 1,
-                "status": "success",
-            }
-        ],
+    assert "plan" not in data
+    assert "tool_result" not in data
+    assert data["answer"] == "请总结 LangChain 的用途"
+    assert data["sources"] == []
+    assert data["selected_tool"] == "summary_tool"
+    assert data["tool_status"] == "success"
+    assert data["tool_output"] == {
+        "summary": "请总结 LangChain 的用途",
     }
     assert data["trace"][-1] == {
         "step": "execute_tool",
@@ -169,33 +166,15 @@ def test_run_agent_endpoint_returns_failed_tool_result_when_retrieval_fails(
 
     data = response.json()
 
-    assert data["tool_result"] == {
-        "tool_name": "retrieval_tool",
-        "status": "failed",
-        "output": {
-            "error_type": "RuntimeError",
-            "error": "rag unavailable",
-        },
-        "attempts": [
-            {
-                "attempt": 1,
-                "status": "failed",
-                "error_type": "RuntimeError",
-                "error": "rag unavailable",
-            },
-            {
-                "attempt": 2,
-                "status": "failed",
-                "error_type": "RuntimeError",
-                "error": "rag unavailable",
-            },
-            {
-                "attempt": 3,
-                "status": "failed",
-                "error_type": "RuntimeError",
-                "error": "rag unavailable",
-            },
-        ],
+    assert "plan" not in data
+    assert "tool_result" not in data
+    assert data["answer"] == "rag unavailable"
+    assert data["sources"] == []
+    assert data["selected_tool"] == "retrieval_tool"
+    assert data["tool_status"] == "failed"
+    assert data["tool_output"] == {
+        "error_type": "RuntimeError",
+        "error": "rag unavailable",
     }
     assert data["trace"][-1] == {
         "step": "execute_tool",

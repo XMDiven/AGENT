@@ -1,6 +1,6 @@
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AgentRunRequest(BaseModel):
@@ -8,6 +8,9 @@ class AgentRunRequest(BaseModel):
 
 
 class AgentRunResponse(BaseModel):
-    plan: dict[str, Any]
-    tool_result: dict[str, Any]
+    answer: str
+    sources: list[dict[str, Any]] = Field(default_factory=list)
+    selected_tool: str
+    tool_status: str
+    tool_output: dict[str, Any]
     trace: list[dict[str, Any]]

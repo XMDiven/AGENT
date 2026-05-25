@@ -23,6 +23,7 @@
 
 - 从 `data/raw` 摄入 Markdown 和 PDF 文件
 - 通过 `/documents/upload` 和 `/documents/upload/batch` 上传 Markdown 和 PDF 文件到本地语料目录
+- 通过 `/documents/ingest` 将已上传的单个 Markdown 或 PDF 文件解析、切分并写入 Qdrant
 - 按稳定的来源元数据切分文档
 - 使用确定性的 chunk ID 将切片写入 Qdrant
 - 通过 `/ask` 接口提问，或通过 `/ask/stream` 流式接收生成内容
@@ -124,6 +125,14 @@ python -m rag_app.scripts.reset_index
 python -m rag_app.scripts.build_index
 ```
 
+如果你已经通过 API 上传了单个文件，也可以只入库这个文件：
+
+```bash
+curl -X POST http://127.0.0.1:8001/documents/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"filename":"example.md"}'
+```
+
 5. 启动 API 并提问：
 
 ```bash
@@ -211,7 +220,26 @@ curl -X POST http://127.0.0.1:8001/documents/upload/batch \
 }
 ```
 
-上传接口只负责把文件保存到 `data/raw/`。上传新文件后，需要重新运行 `build_index` 才能让新文档进入 Qdrant 检索。
+上传接口只负责把文件保存到 `data/raw/`。上传新文件后，可以调用 `/documents/ingest` 入库单个文件，或重新运行 `build_index` 批量重建索引。
+
+入库已上传的单个文件：
+
+```bash
+curl -X POST http://127.0.0.1:8001/documents/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"filename":"example.pdf"}'
+```
+
+入库响应示例：
+
+```json
+{
+  "path": "/Users/mdiven/Code/Projects/AGENT/rag/data/raw/example.pdf",
+  "document_count": 100,
+  "chunk_count": 452,
+  "stored_count": 452
+}
+```
 
 发送问题：
 
@@ -382,6 +410,7 @@ The project supports Markdown and PDF documents, saves source files either from 
 
 - Ingest Markdown and PDF files from `data/raw`
 - Upload Markdown and PDF files through `/documents/upload` and `/documents/upload/batch`
+- Ingest a single uploaded Markdown or PDF file into Qdrant through `/documents/ingest`
 - Chunk documents with stable source metadata
 - Store chunks in Qdrant with deterministic chunk IDs
 - Ask questions through `/ask`, or stream generated content through `/ask/stream`
@@ -483,6 +512,14 @@ python -m rag_app.scripts.reset_index
 python -m rag_app.scripts.build_index
 ```
 
+If you uploaded a single file through the API, you can ingest only that file:
+
+```bash
+curl -X POST http://127.0.0.1:8001/documents/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"filename":"example.md"}'
+```
+
 5. Start the API and ask a question:
 
 ```bash
@@ -570,7 +607,26 @@ Example batch upload response:
 }
 ```
 
-The upload endpoints only save files into `data/raw/`. Run `build_index` again after uploading new files so they become searchable in Qdrant.
+The upload endpoints only save files into `data/raw/`. After uploading a new file, call `/documents/ingest` to ingest one file, or run `build_index` again to rebuild the index in batch.
+
+Ingest a single uploaded file:
+
+```bash
+curl -X POST http://127.0.0.1:8001/documents/ingest \
+  -H "Content-Type: application/json" \
+  -d '{"filename":"example.pdf"}'
+```
+
+Example ingest response:
+
+```json
+{
+  "path": "/Users/mdiven/Code/Projects/AGENT/rag/data/raw/example.pdf",
+  "document_count": 100,
+  "chunk_count": 452,
+  "stored_count": 452
+}
+```
 
 Ask a question:
 

@@ -146,3 +146,90 @@ def test_upload_batch_rejects_unsupported_file_type(
     }
     assert not (tmp_path / "valid.md").exists()
     assert not (tmp_path / "invalid.txt").exists()
+
+
+def test_ingest_uploaded_markdown_document(
+    client,
+    tmp_path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(config, "RAW_DATA_DIR", tmp_path)
+    saved_file = tmp_path / "example.md"
+    saved_file.write_text("# Example", encoding="utf-8")
+
+    expected_result = {
+        "path": str(saved_file),
+        "document_count": 1,
+        "chunk_count": 2,
+        "stored_count": 2,
+    }
+
+    def fake_ingest_file(path: str) -> dict[str, str | int]:
+        assert path == str(saved_file)
+        return expected_result
+
+    monkeypatch.setattr(
+        "rag_app.app.routers.documents.ingest_file",
+        fake_ingest_file,
+    )
+
+    response = client.post(
+        "/documents/ingest",
+        json={"filename": "example.md"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == expected_result
+
+
+def test_ingest_rejects_missing_document(
+    client,
+    tmp_path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(config, "RAW_DATA_DIR", tmp_path)
+
+    response = client.post(
+        "/documents/ingest",
+        json={"filename": "missing.md"},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Document not found"}
+
+
+def test_ingest_rejects_unsupported_file_type(
+    client,
+    tmp_path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(config, "RAW_DATA_DIR", tmp_path)
+    (tmp_path / "example.txt").write_text("not supported", encoding="utf-8")
+
+    response = client.post(
+        "/documents/ingest",
+        json={"filename": "example.txt"},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": "Only .md and .pdf files are supported"
+    }
+
+
+def test_ingest_uses_safe_filename(
+    client,
+    tmp_path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(config, "RAW_DATA_DIR", tmp_path)
+    unsafe_parent_file = tmp_path.parent / "secret.md"
+    unsafe_parent_file.write_text("# Secret", encoding="utf-8")
+
+    response = client.post(
+        "/documents/ingest",
+        json={"filename": "../secret.md"},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Document not found"}

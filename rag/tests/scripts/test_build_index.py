@@ -1,11 +1,13 @@
+from pathlib import Path
+from unittest.mock import Mock
+
 import pytest
 
 from rag_app.config import config
 from rag_app.scripts import build_index as build_index_module
-
-from pathlib import Path
-from unittest.mock import Mock
 from rag_app.scripts.build_index import build_index
+
+
 def test_build_index_aggregates_markdown_and_pdf_files(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -47,17 +49,6 @@ def test_build_index_aggregates_markdown_and_pdf_files(
         mock_ingest_file,
         raising=False,
     )
-    monkeypatch.setattr(
-        build_index_module,
-        "ingest_markdown_file",
-        mock_ingest_file,
-    )
-    monkeypatch.setattr(
-        build_index_module,
-        "ingest_pdf_file",
-        mock_ingest_file,
-        raising=False,
-    )
 
     result = build_index_module.build_index()
 
@@ -77,6 +68,7 @@ def test_build_index_aggregates_markdown_and_pdf_files(
         str(markdown_file),
         str(pdf_file),
     }
+
 
 def test_build_index_aggregates_counts(monkeypatch: pytest.MonkeyPatch) -> None:
     supported_files = [

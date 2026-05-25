@@ -3,10 +3,36 @@ from pathlib import Path
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from rag_app.config import config
+from rag_app.schemas.document_schema import (
+    DocumentIngestRequest,
+    DocumentIngestResponse,
+)
+from rag_app.services.ingest_service import ingest_file
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 ALLOWED_EXTENSIONS = {".md", ".pdf"}
+
+
+def resolve_uploaded_document_path(filename: str) -> Path:
+    safe_filename = Path(filename or "").name
+    suffix = Path(safe_filename).suffix.lower()
+
+    if suffix not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail="Only .md and .pdf files are supported",
+        )
+
+    document_path = config.RAW_DATA_DIR / safe_filename
+
+    if not document_path.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found",
+        )
+
+    return document_path
 
 
 async def save_upload_file(file: UploadFile, filename: str) -> dict[str, str]:
@@ -55,3 +81,12 @@ async def upload_documents(
     return {
         "files": saved_files,
     }
+
+
+@router.post("/ingest")
+async def ingest_document(
+    request: DocumentIngestRequest,
+) -> DocumentIngestResponse:
+    document_path = resolve_uploaded_document_path(request.filename)
+    result = ingest_file(str(document_path))
+    return DocumentIngestResponse(**result)

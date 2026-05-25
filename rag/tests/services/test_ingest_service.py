@@ -8,9 +8,9 @@ from rag_app.services import ingest_service
 from rag_app.services.ingest_service import ingest_markdown_file
 
 
-
-
-def test_ingest_markdown_file_returns_counts(monkeypatch : pytest.MonkeyPatch) -> None:
+def test_ingest_markdown_file_returns_counts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     documents = [
         Document(
             page_content="# LangChain\nLangChain is a framework.",
@@ -63,15 +63,19 @@ def test_ingest_markdown_file_returns_counts(monkeypatch : pytest.MonkeyPatch) -
     mock_chunk_markdown.assert_called_once_with(documents)
     mock_ingest_chunks.assert_called_once_with(chunks)
 
-def test_ingest_pdf_file_returns_counts(monkeypatch : pytest.MonkeyPatch) -> None:
-    documents = [Document(
-        page_content="RAG systems combine retrieval and generation.",
-        metadata={
-            "source": "data/raw/rag-paper.pdf",
-            "page": 1,
-        },
-    )
-]
+
+def test_ingest_pdf_file_returns_counts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    documents = [
+        Document(
+            page_content="RAG systems combine retrieval and generation.",
+            metadata={
+                "source": "data/raw/rag-paper.pdf",
+                "page": 1,
+            },
+        )
+    ]
     chunks = [
         Document(
             page_content="RAG systems combine retrieval and generation.",
@@ -188,3 +192,54 @@ startxref
     assert captured_chunks[0].metadata["page"] == 0
     assert captured_chunks[0].metadata["doc_type"] == "pdf"
     assert captured_chunks[0].metadata["section_path"] == "page_1"
+
+
+def test_ingest_file_dispatches_markdown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected_result = {
+        "path": "data/raw/example.md",
+        "document_count": 1,
+        "chunk_count": 2,
+        "stored_count": 2,
+    }
+    mock_ingest_markdown_file = Mock(return_value=expected_result)
+
+    monkeypatch.setattr(
+        ingest_service,
+        "ingest_markdown_file",
+        mock_ingest_markdown_file,
+    )
+
+    result = ingest_service.ingest_file("data/raw/example.md")
+
+    assert result == expected_result
+    mock_ingest_markdown_file.assert_called_once_with("data/raw/example.md")
+
+
+def test_ingest_file_dispatches_pdf(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    expected_result = {
+        "path": "data/raw/example.pdf",
+        "document_count": 1,
+        "chunk_count": 3,
+        "stored_count": 3,
+    }
+    mock_ingest_pdf_file = Mock(return_value=expected_result)
+
+    monkeypatch.setattr(
+        ingest_service,
+        "ingest_pdf_file",
+        mock_ingest_pdf_file,
+    )
+
+    result = ingest_service.ingest_file("data/raw/example.pdf")
+
+    assert result == expected_result
+    mock_ingest_pdf_file.assert_called_once_with("data/raw/example.pdf")
+
+
+def test_ingest_file_rejects_unsupported_file_type() -> None:
+    with pytest.raises(ValueError, match="Unsupported file type: .txt"):
+        ingest_service.ingest_file("data/raw/example.txt")

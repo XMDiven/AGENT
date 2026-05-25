@@ -1,11 +1,25 @@
+from pathlib import Path
+
+from rag_app.infrastructure.vector_store import ingest_chunks
+from rag_app.ingestion.chunkers.markdown_chunker import chunk_markdown
 from rag_app.ingestion.chunkers.pdf_chunker import chunk_pdf
+from rag_app.ingestion.loaders.markdown_loader import load_markdown
 from rag_app.ingestion.loaders.pdf_loader import load_pdf
 
-from rag_app.ingestion.loaders.markdown_loader import load_markdown
-from rag_app.ingestion.chunkers.markdown_chunker import chunk_markdown
-from rag_app.infrastructure.vector_store import ingest_chunks
 
-def ingest_markdown_file(path : str) ->dict[str, str | int]:
+def ingest_file(path: str) -> dict[str, str | int]:
+    file_path = Path(path)
+
+    if file_path.suffix == ".md":
+        return ingest_markdown_file(path)
+
+    if file_path.suffix == ".pdf":
+        return ingest_pdf_file(path)
+
+    raise ValueError(f"Unsupported file type: {file_path.suffix}")
+
+
+def ingest_markdown_file(path: str) -> dict[str, str | int]:
     documents = load_markdown(path)
     chunks = chunk_markdown(documents)
     ids = ingest_chunks(chunks)
@@ -17,7 +31,8 @@ def ingest_markdown_file(path : str) ->dict[str, str | int]:
         "stored_count": len(ids),
     }
 
-def ingest_pdf_file(path : str) ->dict[str, str | int]:
+
+def ingest_pdf_file(path: str) -> dict[str, str | int]:
     documents = load_pdf(path)
     chunks = chunk_pdf(documents)
     ids = ingest_chunks(chunks)

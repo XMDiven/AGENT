@@ -13,7 +13,8 @@ analyze_question -> plan_tool -> execute_tool -> build AgentState -> return resu
 - 通过 `executor` 执行工具
 - `retrieval_tool` 会调用 `rag_app.services.ask_service.ask_question`
 - `summary_tool` 会对用户输入文本执行本地确定性摘要
-- 返回结构化 `AgentRunResult`
+- Service 层返回结构化 `AgentRunResult`
+- API 层返回适合前端和用户消费的 `answer`、`sources`、`selected_tool`、`tool_status`、`tool_output` 和 `trace`
 - 返回 Agent 层 trace，记录分析、规划和执行步骤
 - 使用 `AgentState` 保存 question、analysis、plan、tool_result 和 trace，明确 Agent 内部状态流转
 - 当 `retrieval_tool` 执行失败时，最多尝试 3 次，并返回结构化失败结果和 attempts 记录
@@ -63,6 +64,8 @@ result = run_agent("What is RAG?")
 - `plan`: 工具选择结果
 - `tool_result`: 工具执行结果
 - `trace`: Agent 层执行轨迹
+
+注意：这是 service 层的内部对象，适合测试和调试 Agent 状态流转。FastAPI 的 `/agent/run` 不直接暴露完整内部对象，而是返回更稳定的对外响应结构。
 
 ## 工具规划策略
 
@@ -259,6 +262,160 @@ curl -X POST http://127.0.0.1:8000/agent/run \
 curl -X POST http://127.0.0.1:8000/agent/run \
   -H "Content-Type: application/json" \
   -d '{"question": "请总结 LangChain 的用途"}'
+```
+
+### `/agent/run` 响应结构
+
+API 层返回的是给前端或调用方使用的结构，不直接暴露 service 层内部的 `plan` 和 `tool_result`：
+
+| 字段 | 说明 |
+| --- | --- |
+| `answer` | 最终给用户展示的回答；从工具输出中的 `answer`、`summary` 或 `error` 提取 |
+| `sources` | RAG 工具返回的来源列表；非检索工具默认返回空列表 |
+| `selected_tool` | planner 选中的工具名 |
+| `tool_status` | 工具执行状态，通常是 `success` 或 `failed` |
+| `tool_output` | 原始工具输出，保留给调试和前端扩展使用 |
+| `trace` | Agent 层执行轨迹，记录分析、规划和执行步骤 |
+
+空问题会走 `fallback_tool`：
+
+```json
+{
+  "answer": "No retrieval is needed for this question.",
+  "sources": [],
+  "selected_tool": "fallback_tool",
+  "tool_status": "success",
+  "tool_output": {
+    "answer": "No retrieval is needed for this question.",
+    "sources": []
+  },
+  "trace": [
+    {
+      "step": "analyze_question",
+      "status": "completed",
+      "detail": {
+        "needs_retrieval": false,
+        "question_type": "empty",
+        "reason": "empty question"
+      }
+    },
+    {
+      "step": "plan_tool",
+      "status": "completed",
+      "detail": {
+        "tool_name": "fallback_tool",
+        "reason": "question does not require retrieval"
+      }
+    },
+    {
+      "step": "execute_tool",
+      "status": "success",
+      "detail": {
+        "tool_name": "fallback_tool",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "success"
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+总结问题会走 `summary_tool`：
+
+```json
+{
+  "answer": "请总结 LangChain 的用途",
+  "sources": [],
+  "selected_tool": "summary_tool",
+  "tool_status": "success",
+  "tool_output": {
+    "summary": "请总结 LangChain 的用途"
+  },
+  "trace": [
+    {
+      "step": "analyze_question",
+      "status": "completed",
+      "detail": {
+        "needs_retrieval": true,
+        "question_type": "summary",
+        "reason": "summary question, use retrieval"
+      }
+    },
+    {
+      "step": "plan_tool",
+      "status": "completed",
+      "detail": {
+        "tool_name": "summary_tool",
+        "reason": "question asks for summarization"
+      }
+    },
+    {
+      "step": "execute_tool",
+      "status": "success",
+      "detail": {
+        "tool_name": "summary_tool",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "success"
+          }
+        ]
+      }
+    }
+  ]
+}
+```
+
+普通知识问题会走 `retrieval_tool`。此时 `tool_output` 会保留 RAG 的原始返回，通常包含 `answer`、`sources` 和 RAG 内部 trace；API 顶层会额外提取 `answer` 和 `sources` 方便调用方直接使用：
+
+```json
+{
+  "answer": "RAG answer",
+  "sources": [],
+  "selected_tool": "retrieval_tool",
+  "tool_status": "success",
+  "tool_output": {
+    "answer": "RAG answer",
+    "sources": [],
+    "trace": []
+  },
+  "trace": [
+    {
+      "step": "analyze_question",
+      "status": "completed",
+      "detail": {
+        "needs_retrieval": true,
+        "question_type": "general",
+        "reason": "normal knowledge question, use retrieval"
+      }
+    },
+    {
+      "step": "plan_tool",
+      "status": "completed",
+      "detail": {
+        "tool_name": "retrieval_tool",
+        "reason": "question requires knowledge retrieval"
+      }
+    },
+    {
+      "step": "execute_tool",
+      "status": "success",
+      "detail": {
+        "tool_name": "retrieval_tool",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "success"
+          }
+        ]
+      }
+    }
+  ]
+}
 ```
 
 健康检查接口：

@@ -8,7 +8,7 @@
 原始文档 -> 摄入 -> 切分 -> 向量嵌入 -> Qdrant 检索 -> LLM 生成回答 -> 引用来源
 ```
 
-项目支持 Markdown 和 PDF 文档，能够通过本地目录或上传接口保存语料，构建 Qdrant 向量索引，提供 FastAPI `/ask` 问答接口和 `/ask/stream` 流式问答接口，并包含轻量级评估脚本，用于检查检索质量和最终回答质量。
+项目支持 Markdown 和 PDF 文档，能够通过本地目录或上传接口保存语料，构建 Qdrant 向量索引，提供 FastAPI `/ask` 问答接口和 `/ask/stream` 流式问答接口，并包含轻量级评估脚本和 LLM-as-Judge 结构化评分，用于检查检索质量、最终回答质量和 groundedness。
 
 ## 技术栈
 
@@ -30,6 +30,7 @@
 - 返回带结构化来源引用的 grounded answer
 - 使用 golden source cases 评估检索结果
 - 评估最终回答的基本内容、来源契约和回归风险
+- 使用 LLM-as-Judge 对回答的 relevance、completeness、groundedness 和 format 做结构化评分
 
 ## 项目结构
 
@@ -364,6 +365,22 @@ experiments/evaluation_runs/
 
 报告包含当前 `RETRIEVAL_TOP_K`、`prompt_version`、检索评估汇总、回答评估汇总、每个 case 的来源路径，以及失败 case 列表。`prompt_version` 用来标识当前回答生成 prompt 的版本；只有当 prompt 策略发生变化时，才需要升级版本号，例如 `qa_prompt_v1` 到 `qa_prompt_v2`。该文件用于保留可复现的评估证据，方便后续比较不同检索配置或 prompt 版本的效果。
 
+运行 LLM-as-Judge 回答质量评估：
+
+```bash
+conda run --no-capture-output -n AI_DEV python -m rag_app.scripts.evaluate_answers_with_judge
+```
+
+该脚本会复用 golden questions 的在线问答流程，再把问题、回答和本次检索返回的 sources 交给 judge prompt，输出 relevance、completeness、groundedness 和 format 四个维度的 1-5 分结构化结果。
+
+LLM-as-Judge 报告默认写入：
+
+```text
+experiments/judge_runs/
+```
+
+当前代表性报告说明见 `experiments/llm_judge_report.md`。
+
 仓库只提交有代表性的 baseline 报告。新的本地评估报告默认会被忽略；如果某次运行需要作为新基线保存，可以使用 `git add -f` 手动加入。
 
 ## 当前评估基线
@@ -372,9 +389,10 @@ experiments/evaluation_runs/
 当前已验证检索配置为 `RETRIEVAL_TOP_K = 7`。最近一次已验证基线为：
 
 ```text
-pytest: 52 passed
+pytest: 77 passed
 retrieval eval: 11/11 passed
 answer eval: 11/11 passed
+judge eval: 11/11 passed
 ```
 
 ## 说明
@@ -395,7 +413,7 @@ This repository is a learning-focused Retrieval-Augmented Generation (RAG) proje
 raw documents -> ingestion -> chunking -> embeddings -> Qdrant retrieval -> LLM answer -> cited sources
 ```
 
-The project supports Markdown and PDF documents, saves source files either from the local corpus directory or through an upload endpoint, builds a Qdrant vector index, exposes FastAPI `/ask` and `/ask/stream` endpoints, and includes lightweight evaluation scripts for both retrieval quality and final answer output quality.
+The project supports Markdown and PDF documents, saves source files either from the local corpus directory or through an upload endpoint, builds a Qdrant vector index, exposes FastAPI `/ask` and `/ask/stream` endpoints, and includes lightweight evaluation scripts plus LLM-as-Judge structured scoring for retrieval quality, final answer quality, and groundedness.
 
 ## Tech Stack
 
@@ -417,6 +435,7 @@ The project supports Markdown and PDF documents, saves source files either from 
 - Return grounded answers with structured source citations
 - Evaluate retrieval with golden source cases
 - Evaluate final answer output for basic answer and source contract regressions
+- Use LLM-as-Judge to score relevance, completeness, groundedness, and format with a structured schema
 
 ## Project Structure
 
@@ -751,6 +770,22 @@ experiments/evaluation_runs/
 
 The report includes the current `RETRIEVAL_TOP_K`, `prompt_version`, retrieval and answer evaluation summaries, per-case source paths, and failed cases. `prompt_version` identifies the answer-generation prompt version; update it only when the prompt strategy changes, for example from `qa_prompt_v1` to `qa_prompt_v2`. These reports preserve reproducible evaluation evidence for comparing retrieval settings or prompt versions over time.
 
+Run the LLM-as-Judge answer-quality evaluation:
+
+```bash
+conda run --no-capture-output -n AI_DEV python -m rag_app.scripts.evaluate_answers_with_judge
+```
+
+This script reuses the online question-answering flow for the golden questions, then sends the question, generated answer, and retrieved sources to the judge prompt. The judge returns structured 1-5 scores for relevance, completeness, groundedness, and format.
+
+LLM-as-Judge reports are written to:
+
+```text
+experiments/judge_runs/
+```
+
+The current representative report is summarized in `experiments/llm_judge_report.md`.
+
 Only representative baseline reports are committed. New local evaluation reports are ignored by default; use `git add -f` if a run should become a new baseline.
 
 ## Current Evaluation Baseline
@@ -759,9 +794,10 @@ The current golden set contains 11 representative questions across Markdown, PDF
 The current verified retrieval setting is `RETRIEVAL_TOP_K = 7`. The latest verified baseline is:
 
 ```text
-pytest: 52 passed
+pytest: 77 passed
 retrieval eval: 11/11 passed
 answer eval: 11/11 passed
+judge eval: 11/11 passed
 ```
 
 ## Notes

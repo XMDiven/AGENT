@@ -19,6 +19,7 @@ rag/data/raw/*
 
 # 评估运行产物
 rag/experiments/evaluation_runs/*.json
+rag/experiments/judge_runs/*.json
 
 # 环境变量
 .env

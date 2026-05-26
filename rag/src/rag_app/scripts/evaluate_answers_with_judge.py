@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
+from time import perf_counter
 from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -35,9 +36,13 @@ def evaluate_case(
     case: RetrievalEvalCase,
     llm: BaseChatModel,
 ) -> dict[str, Any]:
+    case_start = perf_counter()
+    answer_start = perf_counter()
+
     try:
         result = ask_question(case.question)
     except Exception as error:
+        answer_duration_seconds = round(perf_counter() - answer_start, 2)
         return {
             "id": case.id,
             "question": case.question,
@@ -47,10 +52,16 @@ def evaluate_case(
             "passed": False,
             "failures": ["answer generation failed"],
             "answer_error": build_error_detail(error),
+            "answer_duration_seconds": answer_duration_seconds,
+            "judge_duration_seconds": 0.0,
+            "total_duration_seconds": round(perf_counter() - case_start, 2),
         }
 
+    answer_duration_seconds = round(perf_counter() - answer_start, 2)
     answer = str(result.get("answer", ""))
     sources = normalize_sources(result.get("sources", []))
+
+    judge_start = perf_counter()
 
     try:
         judge_result = judge_answer(
@@ -60,6 +71,7 @@ def evaluate_case(
             llm=llm,
         )
     except Exception as error:
+        judge_duration_seconds = round(perf_counter() - judge_start, 2)
         return {
             "id": case.id,
             "question": case.question,
@@ -69,7 +81,12 @@ def evaluate_case(
             "passed": False,
             "failures": ["judge failed"],
             "judge_error": build_error_detail(error),
+            "answer_duration_seconds": answer_duration_seconds,
+            "judge_duration_seconds": judge_duration_seconds,
+            "total_duration_seconds": round(perf_counter() - case_start, 2),
         }
+
+    judge_duration_seconds = round(perf_counter() - judge_start, 2)
 
     return {
         "id": case.id,
@@ -79,6 +96,9 @@ def evaluate_case(
         "judge": judge_result.model_dump(),
         "passed": judge_result.overall_pass,
         "failures": [],
+        "answer_duration_seconds": answer_duration_seconds,
+        "judge_duration_seconds": judge_duration_seconds,
+        "total_duration_seconds": round(perf_counter() - case_start, 2),
     }
 
 
@@ -98,10 +118,24 @@ def save_report(report: dict[str, Any]) -> None:
 def run_evaluation() -> dict[str, Any]:
     cases = load_case()
     llm = get_client()
-    results = [
-        evaluate_case(case, llm)
-        for case in cases
-    ]
+    results = []
+
+    for index, case in enumerate(cases, start=1):
+        print(
+            f"Evaluating judge case {index}/{len(cases)}: {case.id}",
+            flush=True,
+        )
+        result = evaluate_case(case, llm)
+        results.append(result)
+        print(
+            (
+                f"completed {case.id} passed={result['passed']} "
+                f"total={result['total_duration_seconds']}s "
+                f"answer={result['answer_duration_seconds']}s "
+                f"judge={result['judge_duration_seconds']}s"
+            ),
+            flush=True,
+        )
 
     passed_count = sum(result["passed"] for result in results)
     total_count = len(results)

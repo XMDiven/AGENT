@@ -45,6 +45,9 @@ def test_evaluate_case_records_judge_result(monkeypatch) -> None:
     assert result["passed"] is True
     assert result["failures"] == []
     assert result["judge"]["groundedness_score"] == 5
+    assert result["answer_duration_seconds"] >= 0
+    assert result["judge_duration_seconds"] >= 0
+    assert result["total_duration_seconds"] >= 0
 
 
 def test_evaluate_case_records_failure_when_judge_raises(monkeypatch) -> None:
@@ -77,3 +80,48 @@ def test_evaluate_case_records_failure_when_judge_raises(monkeypatch) -> None:
         "error_type": "ValueError",
         "error": "invalid judge json",
     }
+    assert result["answer_duration_seconds"] >= 0
+    assert result["judge_duration_seconds"] >= 0
+    assert result["total_duration_seconds"] >= 0
+
+
+def test_run_evaluation_prints_case_progress(monkeypatch, capsys) -> None:
+    cases = [
+        DummyCase(id="case_one", question="Question one?"),
+        DummyCase(id="case_two", question="Question two?"),
+    ]
+
+    monkeypatch.setattr(
+        evaluate_answers_with_judge,
+        "load_case",
+        lambda: cases,
+    )
+    monkeypatch.setattr(
+        evaluate_answers_with_judge,
+        "get_client",
+        lambda: object(),
+    )
+    monkeypatch.setattr(
+        evaluate_answers_with_judge,
+        "evaluate_case",
+        lambda case, llm: {
+            "id": case.id,
+            "question": case.question,
+            "answer": "answer",
+            "sources": [],
+            "judge": {},
+            "passed": True,
+            "failures": [],
+            "answer_duration_seconds": 1.0,
+            "judge_duration_seconds": 2.0,
+            "total_duration_seconds": 3.0,
+        },
+    )
+
+    summary = evaluate_answers_with_judge.run_evaluation()
+    output = capsys.readouterr().out
+
+    assert summary["passed"] == 2
+    assert "Evaluating judge case 1/2: case_one" in output
+    assert "completed case_one passed=True total=3.0s" in output
+    assert "Evaluating judge case 2/2: case_two" in output

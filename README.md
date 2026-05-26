@@ -2,7 +2,7 @@
 
 这是一个从 RAG 知识库问答逐步演进到轻量 Agent 编排的 AI 应用工程项目。
 
-当前仓库结构把 RAG 作为 Agent 系统的第一个可运行子项目。`rag` 子项目已经支持文档摄入、批量上传、向量检索、问答生成、流式问答、来源返回、轻量问题分析、检索规划、执行 trace、Prompt 版本管理、离线评测和 LLM-as-Judge 结构化评分。`agent` 子项目在 RAG 之上提供轻量编排层，支持问题分析、工具规划、工具执行、Agent trace、摘要工具、工具失败状态返回、工具重试、FastAPI `/agent/run` 接口和 `/health` 健康检查接口。
+当前仓库结构把 RAG 作为 Agent 系统的第一个可运行子项目。`rag` 子项目已经支持文档摄入、批量上传、向量检索、问答生成、流式问答、来源返回、轻量问题分析、检索规划、执行 trace、Prompt 版本管理、离线评测、LLM-as-Judge 结构化评分和 Prompt A/B 对比报告。`agent` 子项目在 RAG 之上提供轻量编排层，支持问题分析、工具规划、工具执行、Agent trace、摘要工具、工具失败状态返回、工具重试、FastAPI `/agent/run` 接口和 `/health` 健康检查接口。
 
 后续扩展方向是继续在当前 RAG 和轻量 Agent 基线上补齐工程证据，例如大文档处理报告、延迟 benchmark、Agent 目录结构整理、问题拆解工具和 Prompt 评测对比报告。
 
@@ -10,14 +10,14 @@
 
 | 子项目 | 状态 | 说明 |
 | --- | --- | --- |
-| `rag` | RAG MVP + 轻量编排基线 | 支持 Markdown/PDF 入库、单文件/批量上传、Qdrant 检索、FastAPI 问答、流式返回、来源引用、执行 trace、Prompt 版本、离线评测和 LLM-as-Judge 结构化评分 |
+| `rag` | RAG MVP + 轻量编排基线 | 支持 Markdown/PDF 入库、单文件/批量上传、Qdrant 检索、FastAPI 问答、流式返回、来源引用、执行 trace、Prompt 版本、离线评测、LLM-as-Judge 结构化评分和 Prompt A/B 对比报告 |
 | `agent` | 轻量 Agent 编排闭环 | 支持工具注册、问题分析、工具规划、工具执行、摘要工具、结构化 Agent trace、工具失败处理、最多 3 次工具重试、FastAPI `/agent/run` 接口和 `/health` 健康检查接口 |
 
 ## 当前能力边界
 
 已经完成并有代码或测试支撑：
 
-- RAG：Markdown/PDF 摄入、单文件上传、批量上传、Qdrant 索引、`/ask`、`/ask/stream`、来源引用、RAG trace、Prompt 版本、离线评估和 LLM-as-Judge 评分报告。
+- RAG：Markdown/PDF 摄入、单文件上传、批量上传、Qdrant 索引、`/ask`、`/ask/stream`、来源引用、RAG trace、Prompt 版本、离线评估、LLM-as-Judge 评分报告和 Prompt A/B 对比报告。
 - Agent：`retrieval_tool`、`summary_tool`、`fallback_tool`、规则式 planner、executor、AgentState、Agent trace、工具失败结构化返回和 retrieval tool 最多 3 次重试。
 
 仍需要补证据后再写进简历的能力：

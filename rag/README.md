@@ -31,6 +31,7 @@
 - 使用 golden source cases 评估检索结果
 - 评估最终回答的基本内容、来源契约和回归风险
 - 使用 LLM-as-Judge 对回答的 relevance、completeness、groundedness 和 format 做结构化评分
+- 使用 Prompt A/B 报告对比 `qa_prompt_v1` 和 `qa_prompt_v2`
 
 ## 项目结构
 
@@ -380,6 +381,7 @@ experiments/judge_runs/
 ```
 
 当前代表性报告说明见 `experiments/llm_judge_report.md`。
+Prompt A/B 对比结论见 `experiments/prompt_comparison_report.md`。
 
 仓库只提交有代表性的 baseline 报告。新的本地评估报告默认会被忽略；如果某次运行需要作为新基线保存，可以使用 `git add -f` 手动加入。
 
@@ -389,7 +391,7 @@ experiments/judge_runs/
 当前已验证检索配置为 `RETRIEVAL_TOP_K = 7`。最近一次已验证基线为：
 
 ```text
-pytest: 77 passed
+pytest: 78 passed
 retrieval eval: 11/11 passed
 answer eval: 11/11 passed
 judge eval: 11/11 passed
@@ -436,6 +438,7 @@ The project supports Markdown and PDF documents, saves source files either from 
 - Evaluate retrieval with golden source cases
 - Evaluate final answer output for basic answer and source contract regressions
 - Use LLM-as-Judge to score relevance, completeness, groundedness, and format with a structured schema
+- Compare `qa_prompt_v1` and `qa_prompt_v2` with a Prompt A/B report
 
 ## Project Structure
 
@@ -785,6 +788,7 @@ experiments/judge_runs/
 ```
 
 The current representative report is summarized in `experiments/llm_judge_report.md`.
+The Prompt A/B comparison is summarized in `experiments/prompt_comparison_report.md`.
 
 Only representative baseline reports are committed. New local evaluation reports are ignored by default; use `git add -f` if a run should become a new baseline.
 
@@ -794,7 +798,7 @@ The current golden set contains 11 representative questions across Markdown, PDF
 The current verified retrieval setting is `RETRIEVAL_TOP_K = 7`. The latest verified baseline is:
 
 ```text
-pytest: 77 passed
+pytest: 78 passed
 retrieval eval: 11/11 passed
 answer eval: 11/11 passed
 judge eval: 11/11 passed

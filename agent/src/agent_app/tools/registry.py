@@ -16,6 +16,12 @@ AVAILABLE_TOOLS: dict[str, ToolDefinition] = {
         name="summary_tool",
         description="Summarize user-provided text.",
     ),
+    "question_decompose_tool": ToolDefinition(
+        name="question_decompose_tool",
+        description=(
+            "Decompose comparison or multi-part questions into sub-questions."
+        ),
+    ),
     "fallback_tool": ToolDefinition(
         name="fallback_tool",
         description="Return a fallback response when no tool should run.",

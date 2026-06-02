@@ -159,6 +159,37 @@ def test_run_agent_uses_summary_tool_for_summary_question() -> None:
     ]
 
 
+def test_run_agent_uses_question_decompose_tool_for_comparison_question() -> None:
+    result = run_agent("LangChain 和 LlamaIndex 分别适合做什么？")
+
+    assert result.plan.tool.name == "question_decompose_tool"
+    assert result.tool_result.tool_name == "question_decompose_tool"
+    assert result.tool_result.status == "success"
+    assert result.tool_result.output == {
+        "sub_questions": [
+            "LangChain 适合做什么？",
+            "LlamaIndex 适合做什么？",
+        ],
+        "reason": "question contains explicit multi-part intent",
+        "decomposition_strategy": "comparison",
+    }
+    assert result.trace[-1] == {
+        "step": "execute_tool",
+        "status": "success",
+        "detail": {
+            "tool_name": "question_decompose_tool",
+            "attempts": [
+                {
+                    "attempt": 1,
+                    "status": "success",
+                }
+            ],
+            "decomposition_strategy": "comparison",
+            "sub_question_count": 2,
+        },
+    }
+
+
 def test_run_agent_marks_trace_failed_when_retrieval_tool_fails(
     monkeypatch,
 ) -> None:

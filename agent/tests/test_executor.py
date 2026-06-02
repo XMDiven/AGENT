@@ -82,6 +82,37 @@ def test_execute_plan_runs_summary_tool() -> None:
     ]
 
 
+def test_execute_plan_runs_question_decompose_tool() -> None:
+    plan = AgentPlan(
+        tool=get_tool("question_decompose_tool"),
+        reason="question contains comparison or multi-part intent",
+    )
+
+    result = execute_plan(
+        plan,
+        tool_input={
+            "question": "LangChain 和 LlamaIndex 分别适合做什么？",
+        },
+    )
+
+    assert result.tool_name == "question_decompose_tool"
+    assert result.status == "success"
+    assert result.output == {
+        "sub_questions": [
+            "LangChain 适合做什么？",
+            "LlamaIndex 适合做什么？",
+        ],
+        "reason": "question contains explicit multi-part intent",
+        "decomposition_strategy": "comparison",
+    }
+    assert result.attempts == [
+        {
+            "attempt": 1,
+            "status": "success",
+        }
+    ]
+
+
 def test_execute_plan_returns_failed_result_for_unsupported_tool() -> None:
     plan = AgentPlan(
         tool=ToolDefinition(

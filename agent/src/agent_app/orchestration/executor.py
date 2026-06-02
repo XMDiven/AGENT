@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from agent_app.orchestration.planner import AgentPlan
+from agent_app.tools.question_decompose import run_question_decompose_tool
 from agent_app.tools.retrieval import run_retrieval_tool
 from agent_app.tools.summary import run_summary_tool
 
@@ -88,6 +89,20 @@ def execute_plan(
             tool_name=plan.tool.name,
             status="success",
             output=run_summary_tool(text),
+            attempts=[
+                {
+                    "attempt": 1,
+                    "status": "success",
+                }
+            ],
+        )
+
+    if plan.tool.name == "question_decompose_tool":
+        question = str((tool_input or {}).get("question", ""))
+        return ToolResult(
+            tool_name=plan.tool.name,
+            status="success",
+            output=run_question_decompose_tool(question),
             attempts=[
                 {
                     "attempt": 1,

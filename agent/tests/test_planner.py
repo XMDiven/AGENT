@@ -15,6 +15,16 @@ def test_plan_tool_selects_summary_tool_for_summary_question() -> None:
     assert plan.reason == "question asks for summarization"
 
 
+def test_plan_tool_selects_question_decompose_tool_for_comparison_question() -> None:
+    plan = plan_tool(
+        question_type="general",
+        question="LangChain 和 LlamaIndex 分别适合做什么？",
+    )
+
+    assert plan.tool.name == "question_decompose_tool"
+    assert plan.reason == "question contains comparison or multi-part intent"
+
+
 def test_plan_tool_selects_retrieval_tool_for_general_question() -> None:
     plan = plan_tool(question_type="general")
 

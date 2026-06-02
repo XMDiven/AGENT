@@ -18,7 +18,10 @@ class AgentRunResult:
 def run_agent(question: str) -> AgentRunResult:
     analysis = analyze_query(question)
 
-    plan = plan_tool(question_type=analysis.question_type)
+    plan = plan_tool(
+        question_type=analysis.question_type,
+        question=question,
+    )
 
     tool_result = execute_plan(
         plan=plan,
@@ -27,6 +30,24 @@ def run_agent(question: str) -> AgentRunResult:
             "text": question,
         },
     )
+
+    execute_detail: dict[str, Any] = {
+        "tool_name": tool_result.tool_name,
+        "attempts": tool_result.attempts,
+    }
+
+    if (
+        tool_result.tool_name == "question_decompose_tool"
+        and isinstance(tool_result.output, dict)
+    ):
+        sub_questions = tool_result.output.get("sub_questions", [])
+        execute_detail["decomposition_strategy"] = tool_result.output.get(
+            "decomposition_strategy"
+        )
+
+        execute_detail["sub_question_count"] = (
+            len(sub_questions) if isinstance(sub_questions, list) else 0
+        )
 
     trace = [
         {
@@ -49,10 +70,7 @@ def run_agent(question: str) -> AgentRunResult:
         {
             "step": "execute_tool",
             "status": tool_result.status,
-            "detail": {
-                "tool_name": tool_result.tool_name,
-                "attempts": tool_result.attempts,
-            },
+            "detail": execute_detail,
         },
     ]
 

@@ -144,6 +144,49 @@ def test_run_agent_endpoint_uses_summary_tool_for_summary_question() -> None:
     }
 
 
+def test_run_agent_endpoint_uses_question_decompose_tool_for_comparison_question() -> None:
+    response = client.post(
+        "/agent/run",
+        json={
+            "question": "LangChain 和 LlamaIndex 分别适合做什么？",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert "plan" not in data
+    assert "tool_result" not in data
+    assert data["answer"] == ""
+    assert data["sources"] == []
+    assert data["selected_tool"] == "question_decompose_tool"
+    assert data["tool_status"] == "success"
+    assert data["tool_output"] == {
+        "sub_questions": [
+            "LangChain 适合做什么？",
+            "LlamaIndex 适合做什么？",
+        ],
+        "reason": "question contains explicit multi-part intent",
+        "decomposition_strategy": "comparison",
+    }
+    assert data["trace"][-1] == {
+        "step": "execute_tool",
+        "status": "success",
+        "detail": {
+            "tool_name": "question_decompose_tool",
+            "attempts": [
+                {
+                    "attempt": 1,
+                    "status": "success",
+                }
+            ],
+            "decomposition_strategy": "comparison",
+            "sub_question_count": 2,
+        },
+    }
+
+
 def test_run_agent_endpoint_returns_failed_tool_result_when_retrieval_fails(
     monkeypatch,
 ) -> None:

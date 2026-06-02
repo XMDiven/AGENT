@@ -9,6 +9,7 @@ def test_list_tools_returns_registered_tools() -> None:
     assert [tool.name for tool in tools] == [
         "retrieval_tool",
         "summary_tool",
+        "question_decompose_tool",
         "fallback_tool",
     ]
 

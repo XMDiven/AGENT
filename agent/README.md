@@ -9,10 +9,11 @@ analyze_question -> plan_tool -> execute_tool -> build AgentState -> return resu
 ## 当前能力
 
 - 调用 RAG 的 `analyze_query()` 判断问题是否需要检索
-- 根据 `question_type` 选择 `retrieval_tool`、`summary_tool` 或 `fallback_tool`
+- 根据 `question_type` 和问题文本规则选择 `retrieval_tool`、`summary_tool`、`question_decompose_tool` 或 `fallback_tool`
 - 通过 `executor` 执行工具
 - `retrieval_tool` 会调用 `rag_app.services.ask_service.ask_question`
 - `summary_tool` 会对用户输入文本执行本地确定性摘要
+- `question_decompose_tool` 会对比较类和多子问题输入做规则式结构化拆解
 - Service 层返回结构化 `AgentRunResult`
 - API 层返回适合前端和用户消费的 `answer`、`sources`、`selected_tool`、`tool_status`、`tool_output` 和 `trace`
 - 返回 Agent 层 trace，记录分析、规划和执行步骤
@@ -36,6 +37,7 @@ src/agent_app/
     state.py         # Agent 内部状态对象
   tools/
     registry.py      # 工具注册表
+    question_decompose.py  # 规则式问题拆解工具
     retrieval.py     # 调用 RAG 问答服务的工具适配层
     summary.py       # 本地摘要工具
   service.py         # Agent 对外统一入口 run_agent(question)
@@ -76,7 +78,8 @@ result = run_agent("What is RAG?")
 | `empty` | `fallback_tool` | 空问题不执行检索 |
 | `summary` | `summary_tool` | 对用户输入文本做本地摘要 |
 | `general` | `retrieval_tool` | 使用 RAG 知识库检索回答 |
-| `comparison` | `retrieval_tool` | 使用 RAG 知识库检索后回答比较类问题 |
+
+此外，planner 会优先识别包含 `分别`、`对比`、`比较`、`compare`、`difference`、`vs` 等明显拆解信号的问题。如果命中规则，会选择 `question_decompose_tool`，返回 `sub_questions`、`reason` 和 `decomposition_strategy`。这是本地规则式拆解，不调用 LLM，也不会自动对每个子问题继续检索。
 
 普通知识问题成功路径示例：
 
@@ -264,6 +267,14 @@ curl -X POST http://127.0.0.1:8000/agent/run \
   -d '{"question": "请总结 LangChain 的用途"}'
 ```
 
+调用问题拆解工具：
+
+```bash
+curl -X POST http://127.0.0.1:8000/agent/run \
+  -H "Content-Type: application/json" \
+  -d '{"question": "LangChain 和 LlamaIndex 分别适合做什么？"}'
+```
+
 ### `/agent/run` 响应结构
 
 API 层返回的是给前端或调用方使用的结构，不直接暴露 service 层内部的 `plan` 和 `tool_result`：
@@ -364,6 +375,59 @@ API 层返回的是给前端或调用方使用的结构，不直接暴露 servic
             "status": "success"
           }
         ]
+      }
+    }
+  ]
+}
+```
+
+比较类或多子问题会走 `question_decompose_tool`。该工具只负责拆解问题，不生成最终答案，也不触发 RAG 检索：
+
+```json
+{
+  "answer": "",
+  "sources": [],
+  "selected_tool": "question_decompose_tool",
+  "tool_status": "success",
+  "tool_output": {
+    "sub_questions": [
+      "LangChain 适合做什么？",
+      "LlamaIndex 适合做什么？"
+    ],
+    "reason": "question contains explicit multi-part intent",
+    "decomposition_strategy": "comparison"
+  },
+  "trace": [
+    {
+      "step": "analyze_question",
+      "status": "completed",
+      "detail": {
+        "needs_retrieval": true,
+        "question_type": "general",
+        "reason": "normal knowledge question, use retrieval"
+      }
+    },
+    {
+      "step": "plan_tool",
+      "status": "completed",
+      "detail": {
+        "tool_name": "question_decompose_tool",
+        "reason": "question contains comparison or multi-part intent"
+      }
+    },
+    {
+      "step": "execute_tool",
+      "status": "success",
+      "detail": {
+        "tool_name": "question_decompose_tool",
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "success"
+          }
+        ],
+        "decomposition_strategy": "comparison",
+        "sub_question_count": 2
       }
     }
   ]

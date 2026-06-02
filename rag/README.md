@@ -32,6 +32,7 @@
 - 评估最终回答的基本内容、来源契约和回归风险
 - 使用 LLM-as-Judge 对回答的 relevance、completeness、groundedness 和 format 做结构化评分
 - 使用 Prompt A/B 报告对比 `qa_prompt_v1` 和 `qa_prompt_v2`
+- 通过 Prompt Eval API 查询历史 judge report 和最新 Prompt 对比指标
 
 ## 项目结构
 
@@ -383,6 +384,26 @@ experiments/judge_runs/
 当前代表性报告说明见 `experiments/llm_judge_report.md`。
 Prompt A/B 对比结论见 `experiments/prompt_comparison_report.md`。
 
+API 启动后，也可以通过只读 Prompt Eval API 查询历史评测结果：
+
+```bash
+curl http://127.0.0.1:8001/prompt-evals/reports
+```
+
+查询指定 judge report：
+
+```bash
+curl http://127.0.0.1:8001/prompt-evals/reports/<run_id>
+```
+
+查询最新 `qa_prompt_v1` 和 `qa_prompt_v2` 对比指标：
+
+```bash
+curl http://127.0.0.1:8001/prompt-evals/comparison/latest
+```
+
+这些 API 只读取 `experiments/judge_runs/` 中已有的历史报告，不会在 HTTP 请求内重新触发 LLM-as-Judge。
+
 仓库只提交有代表性的 baseline 报告。新的本地评估报告默认会被忽略；如果某次运行需要作为新基线保存，可以使用 `git add -f` 手动加入。
 
 ## 当前评估基线
@@ -439,6 +460,7 @@ The project supports Markdown and PDF documents, saves source files either from 
 - Evaluate final answer output for basic answer and source contract regressions
 - Use LLM-as-Judge to score relevance, completeness, groundedness, and format with a structured schema
 - Compare `qa_prompt_v1` and `qa_prompt_v2` with a Prompt A/B report
+- Query historical judge reports and latest Prompt comparison metrics through the Prompt Eval API
 
 ## Project Structure
 
@@ -789,6 +811,26 @@ experiments/judge_runs/
 
 The current representative report is summarized in `experiments/llm_judge_report.md`.
 The Prompt A/B comparison is summarized in `experiments/prompt_comparison_report.md`.
+
+After the API starts, you can also query historical evaluation results through the read-only Prompt Eval API:
+
+```bash
+curl http://127.0.0.1:8001/prompt-evals/reports
+```
+
+Query a specific judge report:
+
+```bash
+curl http://127.0.0.1:8001/prompt-evals/reports/<run_id>
+```
+
+Query the latest `qa_prompt_v1` and `qa_prompt_v2` comparison metrics:
+
+```bash
+curl http://127.0.0.1:8001/prompt-evals/comparison/latest
+```
+
+These APIs only read existing historical reports from `experiments/judge_runs/`; they do not trigger LLM-as-Judge inside the HTTP request.
 
 Only representative baseline reports are committed. New local evaluation reports are ignored by default; use `git add -f` if a run should become a new baseline.
 

@@ -32,7 +32,7 @@
 - 评估最终回答的基本内容、来源契约和回归风险
 - 使用 LLM-as-Judge 对回答的 relevance、completeness、groundedness 和 format 做结构化评分
 - 使用 Prompt A/B 报告对比 `qa_prompt_v1` 和 `qa_prompt_v2`
-- 通过 Prompt Eval API 查询历史 judge report 和最新 Prompt 对比指标
+- 通过 Prompt Eval API 查询历史 judge report、最新 Prompt 对比指标，并支持同步小样本评测运行
 
 ## 项目结构
 
@@ -384,7 +384,7 @@ experiments/judge_runs/
 当前代表性报告说明见 `experiments/llm_judge_report.md`。
 Prompt A/B 对比结论见 `experiments/prompt_comparison_report.md`。
 
-API 启动后，也可以通过只读 Prompt Eval API 查询历史评测结果：
+API 启动后，也可以通过 Prompt Eval API 查询历史评测结果：
 
 ```bash
 curl http://127.0.0.1:8001/prompt-evals/reports
@@ -402,7 +402,15 @@ curl http://127.0.0.1:8001/prompt-evals/reports/<run_id>
 curl http://127.0.0.1:8001/prompt-evals/comparison/latest
 ```
 
-这些 API 只读取 `experiments/judge_runs/` 中已有的历史报告，不会在 HTTP 请求内重新触发 LLM-as-Judge。
+同步触发一次小样本 LLM-as-Judge 评测，并将报告写入 `experiments/judge_runs/`：
+
+```bash
+curl -X POST http://127.0.0.1:8001/prompt-evals/run \
+  -H "Content-Type: application/json" \
+  -d '{"prompt_version":"qa_prompt_v2","case_limit":1}'
+```
+
+`GET /prompt-evals/reports`、`GET /prompt-evals/reports/{run_id}` 和 `GET /prompt-evals/comparison/latest` 只读取已有历史报告；`POST /prompt-evals/run` 会在 HTTP 请求内同步触发评测，适合本地 demo 和小样本验证，不适合长耗时生产任务。生产环境应改成后台任务或任务队列。
 
 仓库只提交有代表性的 baseline 报告。新的本地评估报告默认会被忽略；如果某次运行需要作为新基线保存，可以使用 `git add -f` 手动加入。
 
@@ -412,7 +420,7 @@ curl http://127.0.0.1:8001/prompt-evals/comparison/latest
 当前已验证检索配置为 `RETRIEVAL_TOP_K = 7`。最近一次已验证基线为：
 
 ```text
-pytest: 78 passed
+pytest: 85 passed
 retrieval eval: 11/11 passed
 answer eval: 11/11 passed
 judge eval: 11/11 passed
@@ -460,7 +468,7 @@ The project supports Markdown and PDF documents, saves source files either from 
 - Evaluate final answer output for basic answer and source contract regressions
 - Use LLM-as-Judge to score relevance, completeness, groundedness, and format with a structured schema
 - Compare `qa_prompt_v1` and `qa_prompt_v2` with a Prompt A/B report
-- Query historical judge reports and latest Prompt comparison metrics through the Prompt Eval API
+- Query historical judge reports and latest Prompt comparison metrics through the Prompt Eval API, and trigger synchronous small-sample eval runs
 
 ## Project Structure
 
@@ -812,7 +820,7 @@ experiments/judge_runs/
 The current representative report is summarized in `experiments/llm_judge_report.md`.
 The Prompt A/B comparison is summarized in `experiments/prompt_comparison_report.md`.
 
-After the API starts, you can also query historical evaluation results through the read-only Prompt Eval API:
+After the API starts, you can also query historical evaluation results through the Prompt Eval API:
 
 ```bash
 curl http://127.0.0.1:8001/prompt-evals/reports
@@ -830,7 +838,15 @@ Query the latest `qa_prompt_v1` and `qa_prompt_v2` comparison metrics:
 curl http://127.0.0.1:8001/prompt-evals/comparison/latest
 ```
 
-These APIs only read existing historical reports from `experiments/judge_runs/`; they do not trigger LLM-as-Judge inside the HTTP request.
+Trigger a synchronous small-sample LLM-as-Judge run and write the report to `experiments/judge_runs/`:
+
+```bash
+curl -X POST http://127.0.0.1:8001/prompt-evals/run \
+  -H "Content-Type: application/json" \
+  -d '{"prompt_version":"qa_prompt_v2","case_limit":1}'
+```
+
+`GET /prompt-evals/reports`, `GET /prompt-evals/reports/{run_id}`, and `GET /prompt-evals/comparison/latest` only read existing historical reports; `POST /prompt-evals/run` triggers evaluation synchronously inside the HTTP request. It is intended for local demos and small-sample validation, not long-running production jobs. Production deployments should use a background task or queue.
 
 Only representative baseline reports are committed. New local evaluation reports are ignored by default; use `git add -f` if a run should become a new baseline.
 
@@ -840,7 +856,7 @@ The current golden set contains 11 representative questions across Markdown, PDF
 The current verified retrieval setting is `RETRIEVAL_TOP_K = 7`. The latest verified baseline is:
 
 ```text
-pytest: 78 passed
+pytest: 85 passed
 retrieval eval: 11/11 passed
 answer eval: 11/11 passed
 judge eval: 11/11 passed

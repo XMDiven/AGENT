@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime
+from pathlib import Path
 from time import perf_counter
 from typing import Any
 
@@ -102,8 +103,13 @@ def evaluate_case(
     }
 
 
-def save_report(report: dict[str, Any]) -> None:
-    output_dir = config.PROJECT_ROOT / "experiments" / "judge_runs"
+def save_report(
+    report: dict[str, Any],
+    output_dir: Path | None = None,
+) -> Path:
+    if output_dir is None:
+        output_dir = config.PROJECT_ROOT / "experiments" / "judge_runs"
+
     output_dir.mkdir(parents=True, exist_ok=True)
 
     output_path = output_dir / f"{report['run_id']}.json"
@@ -114,40 +120,55 @@ def save_report(report: dict[str, Any]) -> None:
 
     print(f"judge report saved to: {output_path}")
 
+    return output_path
 
-def run_evaluation() -> dict[str, Any]:
-    cases = load_case()
-    llm = get_client()
-    results = []
 
-    for index, case in enumerate(cases, start=1):
-        print(
-            f"Evaluating judge case {index}/{len(cases)}: {case.id}",
-            flush=True,
-        )
-        result = evaluate_case(case, llm)
-        results.append(result)
-        print(
-            (
-                f"completed {case.id} passed={result['passed']} "
-                f"total={result['total_duration_seconds']}s "
-                f"answer={result['answer_duration_seconds']}s "
-                f"judge={result['judge_duration_seconds']}s"
-            ),
-            flush=True,
-        )
+def run_evaluation(
+    prompt_version: str | None = None,
+    case_limit: int | None = None,
+) -> dict[str, Any]:
+    previous_prompt_version = config.QA_PROMPT_VERSION
 
-    passed_count = sum(result["passed"] for result in results)
-    total_count = len(results)
+    if prompt_version is not None:
+        config.QA_PROMPT_VERSION = prompt_version
 
-    return {
-        "run_id": datetime.now().strftime("%Y%m%d-%H%M%S"),
-        "prompt_version": config.QA_PROMPT_VERSION,
-        "total": total_count,
-        "passed": passed_count,
-        "failed": total_count - passed_count,
-        "cases": results,
-    }
+    try:
+        cases = load_case()
+        if case_limit is not None:
+            cases = cases[:case_limit]
+        llm = get_client()
+        results = []
+
+        for index, case in enumerate(cases, start=1):
+            print(
+                f"Evaluating judge case {index}/{len(cases)}: {case.id}",
+                flush=True,
+            )
+            result = evaluate_case(case, llm)
+            results.append(result)
+            print(
+                (
+                    f"completed {case.id} passed={result['passed']} "
+                    f"total={result['total_duration_seconds']}s "
+                    f"answer={result['answer_duration_seconds']}s "
+                    f"judge={result['judge_duration_seconds']}s"
+                ),
+                flush=True,
+            )
+
+        passed_count = sum(result["passed"] for result in results)
+        total_count = len(results)
+
+        return {
+            "run_id": datetime.now().strftime("%Y%m%d-%H%M%S"),
+            "prompt_version": config.QA_PROMPT_VERSION,
+            "total": total_count,
+            "passed": passed_count,
+            "failed": total_count - passed_count,
+            "cases": results,
+        }
+    finally:
+        config.QA_PROMPT_VERSION = previous_prompt_version
 
 
 def main() -> None:

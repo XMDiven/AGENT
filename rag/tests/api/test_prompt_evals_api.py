@@ -217,3 +217,58 @@ def test_get_latest_prompt_comparison_returns_404_when_missing_prompt_report(
     assert response.json() == {
         "detail": "missing qa_prompt_v1 or qa_prompt_v2 judge report",
     }
+
+
+def test_run_prompt_eval(client, monkeypatch) -> None:
+    def fake_run_prompt_eval(
+        prompt_version: str,
+        case_limit: int | None = None,
+    ) -> dict[str, Any]:
+        total = case_limit or 0
+
+        return {
+            "run_id": "20260602-213000",
+            "prompt_version": prompt_version,
+            "status": "completed",
+            "total": total,
+            "passed": total,
+            "failed": 0,
+            "report_url": "/prompt-evals/reports/20260602-213000",
+        }
+
+    monkeypatch.setattr(
+        prompt_eval_service,
+        "run_prompt_eval",
+        fake_run_prompt_eval,
+    )
+
+    response = client.post(
+        "/prompt-evals/run",
+        json={
+            "prompt_version": "qa_prompt_v2",
+            "case_limit": 3,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "run_id": "20260602-213000",
+        "prompt_version": "qa_prompt_v2",
+        "status": "completed",
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "report_url": "/prompt-evals/reports/20260602-213000",
+    }
+
+
+def test_run_prompt_eval_rejects_invalid_case_limit(client) -> None:
+    response = client.post(
+        "/prompt-evals/run",
+        json={
+            "prompt_version": "qa_prompt_v2",
+            "case_limit": 0,
+        },
+    )
+
+    assert response.status_code == 422

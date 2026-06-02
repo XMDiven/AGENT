@@ -6,6 +6,10 @@ from pathlib import Path
 from typing import Any
 
 from rag_app.config import config
+from rag_app.scripts.evaluate_answers_with_judge import (
+    run_evaluation,
+    save_report,
+)
 
 JUDGE_RUNS_DIR = config.PROJECT_ROOT / "experiments" / "judge_runs"
 
@@ -140,4 +144,28 @@ def get_latest_comparison() -> dict[str, Any]:
             "Use the configured default prompt after comparing judge scores "
             "and latency metrics."
         ),
+    }
+
+
+def run_prompt_eval(
+    prompt_version: str,
+    case_limit: int | None = None,
+) -> dict[str, Any]:
+    report = run_evaluation(
+        prompt_version=prompt_version,
+        case_limit=case_limit,
+    )
+
+    save_report(report, output_dir=JUDGE_RUNS_DIR)
+
+    run_id = str(report["run_id"])
+
+    return {
+        "run_id": run_id,
+        "prompt_version": report["prompt_version"],
+        "status": "completed",
+        "total": report["total"],
+        "passed": report["passed"],
+        "failed": report["failed"],
+        "report_url": f"/prompt-evals/reports/{run_id}",
     }

@@ -15,6 +15,19 @@ from rag_app.scripts.evaluate_retrieval import RetrievalEvalCase, load_case
 from rag_app.services.ask_service import ask_question
 
 
+def build_custom_cases(
+    cases: list[dict[str, str]],
+) -> list[RetrievalEvalCase]:
+    return [
+        RetrievalEvalCase(
+            id=case["id"],
+            question=case["question"],
+            expected_source_contains=[],
+        )
+        for case in cases
+    ]
+
+
 def build_error_detail(error: Exception) -> dict[str, str]:
     return {
         "error_type": type(error).__name__,
@@ -126,6 +139,7 @@ def save_report(
 def run_evaluation(
     prompt_version: str | None = None,
     case_limit: int | None = None,
+    cases: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     previous_prompt_version = config.QA_PROMPT_VERSION
 
@@ -133,15 +147,17 @@ def run_evaluation(
         config.QA_PROMPT_VERSION = prompt_version
 
     try:
-        cases = load_case()
+        eval_cases = build_custom_cases(cases) if cases is not None else load_case()
+        case_source = "custom" if cases is not None else "default"
+
         if case_limit is not None:
-            cases = cases[:case_limit]
+            eval_cases = eval_cases[:case_limit]
         llm = get_client()
         results = []
 
-        for index, case in enumerate(cases, start=1):
+        for index, case in enumerate(eval_cases, start=1):
             print(
-                f"Evaluating judge case {index}/{len(cases)}: {case.id}",
+                f"Evaluating judge case {index}/{len(eval_cases)}: {case.id}",
                 flush=True,
             )
             result = evaluate_case(case, llm)
@@ -166,6 +182,7 @@ def run_evaluation(
             "passed": passed_count,
             "failed": total_count - passed_count,
             "cases": results,
+            "case_source": case_source,
         }
     finally:
         config.QA_PROMPT_VERSION = previous_prompt_version

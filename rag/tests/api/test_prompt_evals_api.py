@@ -223,6 +223,7 @@ def test_run_prompt_eval(client, monkeypatch) -> None:
     def fake_run_prompt_eval(
         prompt_version: str,
         case_limit: int | None = None,
+        cases: list[dict[str, str]] | None = None,
     ) -> dict[str, Any]:
         total = case_limit or 0
 
@@ -262,12 +263,80 @@ def test_run_prompt_eval(client, monkeypatch) -> None:
     }
 
 
+def test_run_prompt_eval_accepts_custom_cases(client, monkeypatch) -> None:
+    captured: dict[str, Any] = {}
+
+    def fake_run_prompt_eval(
+        prompt_version: str,
+        case_limit: int | None = None,
+        cases: list[dict[str, str]] | None = None,
+    ) -> dict[str, Any]:
+        captured["prompt_version"] = prompt_version
+        captured["case_limit"] = case_limit
+        captured["cases"] = cases
+        total = len(cases or [])
+
+        return {
+            "run_id": "20260602-213000",
+            "prompt_version": prompt_version,
+            "status": "completed",
+            "total": total,
+            "passed": total,
+            "failed": 0,
+            "report_url": "/prompt-evals/reports/20260602-213000",
+        }
+
+    monkeypatch.setattr(
+        prompt_eval_service,
+        "run_prompt_eval",
+        fake_run_prompt_eval,
+    )
+
+    response = client.post(
+        "/prompt-evals/run",
+        json={
+            "prompt_version": "qa_prompt_v2",
+            "cases": [
+                {
+                    "id": "custom_qdrant_usage",
+                    "question": "Qdrant 主要用于解决什么问题？",
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    assert captured == {
+        "prompt_version": "qa_prompt_v2",
+        "case_limit": None,
+        "cases": [
+            {
+                "id": "custom_qdrant_usage",
+                "question": "Qdrant 主要用于解决什么问题？",
+            }
+        ],
+    }
+    assert response.json()["total"] == 1
+
+
 def test_run_prompt_eval_rejects_invalid_case_limit(client) -> None:
     response = client.post(
         "/prompt-evals/run",
         json={
             "prompt_version": "qa_prompt_v2",
             "case_limit": 0,
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_run_prompt_eval_rejects_empty_custom_cases(client) -> None:
+    response = client.post(
+        "/prompt-evals/run",
+        json={
+            "prompt_version": "qa_prompt_v2",
+            "cases": [],
         },
     )
 

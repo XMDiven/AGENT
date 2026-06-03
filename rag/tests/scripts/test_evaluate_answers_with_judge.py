@@ -125,3 +125,100 @@ def test_run_evaluation_prints_case_progress(monkeypatch, capsys) -> None:
     assert "Evaluating judge case 1/2: case_one" in output
     assert "completed case_one passed=True total=3.0s" in output
     assert "Evaluating judge case 2/2: case_two" in output
+
+
+def test_run_evaluation_uses_custom_cases(monkeypatch) -> None:
+    def fail_load_case():
+        raise AssertionError("default cases should not be loaded")
+
+    monkeypatch.setattr(
+        evaluate_answers_with_judge,
+        "load_case",
+        fail_load_case,
+    )
+    monkeypatch.setattr(
+        evaluate_answers_with_judge,
+        "get_client",
+        lambda: object(),
+    )
+    monkeypatch.setattr(
+        evaluate_answers_with_judge,
+        "evaluate_case",
+        lambda case, llm: {
+            "id": case.id,
+            "question": case.question,
+            "answer": "answer",
+            "sources": [],
+            "judge": {},
+            "passed": True,
+            "failures": [],
+            "answer_duration_seconds": 1.0,
+            "judge_duration_seconds": 2.0,
+            "total_duration_seconds": 3.0,
+        },
+    )
+
+    summary = evaluate_answers_with_judge.run_evaluation(
+        cases=[
+            {
+                "id": "custom_case",
+                "question": "Custom question?",
+            }
+        ]
+    )
+
+    assert summary["case_source"] == "custom"
+    assert summary["total"] == 1
+    assert summary["passed"] == 1
+    assert summary["cases"][0]["id"] == "custom_case"
+    assert summary["cases"][0]["question"] == "Custom question?"
+
+
+def test_run_evaluation_applies_case_limit_to_custom_cases(monkeypatch) -> None:
+    evaluated_case_ids: list[str] = []
+
+    monkeypatch.setattr(
+        evaluate_answers_with_judge,
+        "get_client",
+        lambda: object(),
+    )
+
+    def fake_evaluate_case(case, llm):
+        evaluated_case_ids.append(case.id)
+
+        return {
+            "id": case.id,
+            "question": case.question,
+            "answer": "answer",
+            "sources": [],
+            "judge": {},
+            "passed": True,
+            "failures": [],
+            "answer_duration_seconds": 1.0,
+            "judge_duration_seconds": 2.0,
+            "total_duration_seconds": 3.0,
+        }
+
+    monkeypatch.setattr(
+        evaluate_answers_with_judge,
+        "evaluate_case",
+        fake_evaluate_case,
+    )
+
+    summary = evaluate_answers_with_judge.run_evaluation(
+        case_limit=1,
+        cases=[
+            {
+                "id": "custom_case_one",
+                "question": "Custom question one?",
+            },
+            {
+                "id": "custom_case_two",
+                "question": "Custom question two?",
+            },
+        ],
+    )
+
+    assert summary["case_source"] == "custom"
+    assert summary["total"] == 1
+    assert evaluated_case_ids == ["custom_case_one"]

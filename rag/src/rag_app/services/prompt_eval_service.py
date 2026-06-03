@@ -150,10 +150,12 @@ def get_latest_comparison() -> dict[str, Any]:
 def run_prompt_eval(
     prompt_version: str,
     case_limit: int | None = None,
+    cases: list[dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     report = run_evaluation(
         prompt_version=prompt_version,
         case_limit=case_limit,
+        cases=cases,
     )
 
     save_report(report, output_dir=JUDGE_RUNS_DIR)

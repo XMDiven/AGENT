@@ -37,9 +37,16 @@ def run_prompt_eval(
     request: PromptEvalRunRequest,
 ) -> PromptEvalRunResponse:
     try:
+        custom_cases = (
+            [case.model_dump() for case in request.cases]
+            if request.cases is not None
+            else None
+        )
+
         result = prompt_eval_service.run_prompt_eval(
             prompt_version=request.prompt_version,
             case_limit=request.case_limit,
+            cases=custom_cases,
         )
 
     except ValueError as error:

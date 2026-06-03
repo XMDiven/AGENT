@@ -14,3 +14,10 @@ class AgentRunResponse(BaseModel):
     tool_status: str
     tool_output: dict[str, Any]
     trace: list[dict[str, Any]]
+
+
+class AgentToolResponse(BaseModel):
+    name: str
+    description: str
+    input_schema: dict[str, Any]
+    output_schema: dict[str, Any]

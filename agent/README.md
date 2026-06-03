@@ -13,12 +13,14 @@ analyze_question -> plan_tool -> execute_tool -> build AgentState -> return resu
 - 通过 `executor` 执行工具
 - `retrieval_tool` 会调用 `rag_app.services.ask_service.ask_question`
 - `summary_tool` 会对用户输入文本执行本地确定性摘要
-- `question_decompose_tool` 会对比较类和多子问题输入做规则式结构化拆解
+- `question_decompose_tool` 会对比较类和多子问题输入做规则式结构化拆解，并对子问题逐个调用 RAG 检索后聚合结果
+- 工具注册表为每个工具定义 `input_schema` 和 `output_schema`，明确工具调用契约
 - Service 层返回结构化 `AgentRunResult`
 - API 层返回适合前端和用户消费的 `answer`、`sources`、`selected_tool`、`tool_status`、`tool_output` 和 `trace`
+- 通过 `GET /agent/tools` 暴露工具能力列表和输入输出契约，便于调试、前端能力发现和后续受控 tool calling
 - 返回 Agent 层 trace，记录分析、规划和执行步骤
 - 使用 `AgentState` 保存 question、analysis、plan、tool_result 和 trace，明确 Agent 内部状态流转
-- 当 `retrieval_tool` 执行失败时，最多尝试 3 次，并返回结构化失败结果和 attempts 记录
+- Agent 层记录工具执行成功或失败；RAG 检索与生成重试由 RAG 服务内部处理
 - 通过 FastAPI 暴露 `POST /agent/run` 接口
 - 提供 `GET /health` 健康检查接口
 
@@ -30,13 +32,14 @@ src/agent_app/
     main.py            # FastAPI 应用入口
     routers/health.py  # GET /health 健康检查接口
     routers/run.py     # POST /agent/run 接口
+    routers/tools.py   # GET /agent/tools 工具能力发现接口
   schemas/run.py    # Agent API 请求和响应结构
   orchestration/
     planner.py       # 根据问题分析结果选择工具
     executor.py      # 执行工具并包装 ToolResult
     state.py         # Agent 内部状态对象
   tools/
-    registry.py      # 工具注册表
+    registry.py      # 工具注册表和输入输出契约
     question_decompose.py  # 规则式问题拆解工具
     retrieval.py     # 调用 RAG 问答服务的工具适配层
     summary.py       # 本地摘要工具
@@ -49,7 +52,7 @@ src/agent_app/
 - `schemas/` 只放 API 请求和响应结构。
 - `service.py` 负责串起一次 Agent run。
 - `orchestration/` 放规划、执行和状态流转。
-- `tools/` 放工具注册表和具体工具适配层。
+- `tools/` 放工具注册表、工具输入输出契约和具体工具适配层。
 
 ## 执行流程
 
@@ -79,7 +82,7 @@ result = run_agent("What is RAG?")
 | `summary` | `summary_tool` | 对用户输入文本做本地摘要 |
 | `general` | `retrieval_tool` | 使用 RAG 知识库检索回答 |
 
-此外，planner 会优先识别包含 `分别`、`对比`、`比较`、`compare`、`difference`、`vs` 等明显拆解信号的问题。如果命中规则，会选择 `question_decompose_tool`，返回 `sub_questions`、`reason` 和 `decomposition_strategy`。这是本地规则式拆解，不调用 LLM，也不会自动对每个子问题继续检索。
+此外，planner 会优先识别包含 `分别`、`对比`、`比较`、`compare`、`difference`、`vs` 等明显拆解信号的问题。如果命中规则，会选择 `question_decompose_tool`。这是本地规则式拆解，不调用 LLM；executor 会对子问题逐个调用 RAG 检索工具，并聚合 `answer`、`sources` 和 `sub_results`。
 
 普通知识问题成功路径示例：
 
@@ -118,7 +121,7 @@ result = run_agent("What is RAG?")
 ]
 ```
 
-`retrieval_tool` 调用 RAG，可能遇到向量库、LLM 或网络类临时失败，因此 executor 会最多尝试 3 次。工具失败时，`tool_result.status` 会变为 `failed`，并返回错误类型、错误信息和每次尝试记录：
+`retrieval_tool` 调用 RAG，可能遇到向量库、LLM 或网络类临时失败。Agent executor 不做粗粒度整体重试；向量检索和回答生成的有限重试由 RAG 服务层处理。工具失败时，`tool_result.status` 会变为 `failed`，并返回错误类型、错误信息和 attempts 记录：
 
 ```json
 {
@@ -131,18 +134,6 @@ result = run_agent("What is RAG?")
   "attempts": [
     {
       "attempt": 1,
-      "status": "failed",
-      "error_type": "RuntimeError",
-      "error": "rag unavailable"
-    },
-    {
-      "attempt": 2,
-      "status": "failed",
-      "error_type": "RuntimeError",
-      "error": "rag unavailable"
-    },
-    {
-      "attempt": 3,
       "status": "failed",
       "error_type": "RuntimeError",
       "error": "rag unavailable"
@@ -275,6 +266,14 @@ curl -X POST http://127.0.0.1:8000/agent/run \
   -d '{"question": "LangChain 和 LlamaIndex 分别适合做什么？"}'
 ```
 
+查询 Agent 工具能力：
+
+```bash
+curl http://127.0.0.1:8000/agent/tools
+```
+
+`GET /agent/tools` 返回当前已注册工具的 `name`、`description`、`input_schema` 和 `output_schema`。该接口只做能力发现，不执行工具、不调用 RAG，也不代表已经接入 LLM Function Calling。
+
 ### `/agent/run` 响应结构
 
 API 层返回的是给前端或调用方使用的结构，不直接暴露 service 层内部的 `plan` 和 `tool_result`：
@@ -381,18 +380,46 @@ API 层返回的是给前端或调用方使用的结构，不直接暴露 servic
 }
 ```
 
-比较类或多子问题会走 `question_decompose_tool`。该工具只负责拆解问题，不生成最终答案，也不触发 RAG 检索：
+比较类或多子问题会走 `question_decompose_tool`。该工具会先规则式拆解问题，再对子问题逐个调用 RAG 检索工具，并聚合最终回答、来源和子问题结果：
 
 ```json
 {
-  "answer": "",
+  "answer": "1. LangChain 适合做什么？\nLangChain answer\n\n2. LlamaIndex 适合做什么？\nLlamaIndex answer",
   "sources": [],
   "selected_tool": "question_decompose_tool",
   "tool_status": "success",
   "tool_output": {
+    "answer": "1. LangChain 适合做什么？\nLangChain answer\n\n2. LlamaIndex 适合做什么？\nLlamaIndex answer",
+    "sources": [],
     "sub_questions": [
       "LangChain 适合做什么？",
       "LlamaIndex 适合做什么？"
+    ],
+    "sub_results": [
+      {
+        "question": "LangChain 适合做什么？",
+        "status": "success",
+        "answer": "LangChain answer",
+        "sources": [],
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "success"
+          }
+        ]
+      },
+      {
+        "question": "LlamaIndex 适合做什么？",
+        "status": "success",
+        "answer": "LlamaIndex answer",
+        "sources": [],
+        "attempts": [
+          {
+            "attempt": 1,
+            "status": "success"
+          }
+        ]
+      }
     ],
     "reason": "question contains explicit multi-part intent",
     "decomposition_strategy": "comparison"

@@ -6,8 +6,6 @@ from agent_app.tools.question_decompose import run_question_decompose_tool
 from agent_app.tools.retrieval import run_retrieval_tool
 from agent_app.tools.summary import run_summary_tool
 
-MAX_TOOL_ATTEMPTS = 3
-
 
 @dataclass(frozen=True)
 class ToolResult:
@@ -17,53 +15,119 @@ class ToolResult:
     attempts: list[dict[str, Any]]
 
 
+def normalize_output(output: Any) -> dict[str, Any]:
+    if isinstance(output, dict):
+        return output
+
+    return {
+        "result": output,
+    }
+
+
+def run_decomposed_retrieval(question: str) -> dict[str, Any]:
+    decomposition = run_question_decompose_tool(question)
+    sub_questions = decomposition.get("sub_questions", [])
+
+    sub_results: list[dict[str, Any]] = []
+    all_sources: list[dict[str, Any]] = []
+    answer_parts: list[str] = []
+
+    for index, sub_question in enumerate(sub_questions, start=1):
+        try:
+            retrieval_output = normalize_output(
+                run_retrieval_tool(str(sub_question))
+            )
+            status = "success"
+            attempts = [
+                {
+                    "attempt": 1,
+                    "status": "success",
+                }
+            ]
+        except Exception as error:
+            retrieval_output = {
+                "error_type": type(error).__name__,
+                "error": str(error),
+            }
+            status = "failed"
+            attempts = [
+                {
+                    "attempt": 1,
+                    "status": "failed",
+                    "error_type": type(error).__name__,
+                    "error": str(error),
+                }
+            ]
+
+        answer = retrieval_output.get("answer", "")
+        sources = retrieval_output.get("sources", [])
+        normalized_sources = sources if isinstance(sources, list) else []
+
+        all_sources.extend(normalized_sources)
+
+        sub_result = {
+            "question": str(sub_question),
+            "status": status,
+            "answer": answer if isinstance(answer, str) else "",
+            "sources": normalized_sources,
+            "attempts": attempts,
+        }
+
+        if status != "success":
+            sub_result["error_type"] = retrieval_output.get("error_type", "")
+            sub_result["error"] = retrieval_output.get("error", "")
+
+        sub_results.append(sub_result)
+
+        if isinstance(answer, str) and answer:
+            answer_parts.append(f"{index}. {sub_question}\n{answer}")
+
+    return {
+        "answer": "\n\n".join(answer_parts),
+        "sources": all_sources,
+        "sub_questions": [str(item) for item in sub_questions],
+        "sub_results": sub_results,
+        "reason": decomposition.get("reason"),
+        "decomposition_strategy": decomposition.get("decomposition_strategy"),
+    }
+
+
 def execute_plan(
     plan: AgentPlan,
     tool_input: dict[str, Any] | None = None,
-    max_attempts: int = MAX_TOOL_ATTEMPTS,
 ) -> ToolResult:
     if plan.tool.name == "retrieval_tool":
         question = str((tool_input or {}).get("question", ""))
-        attempts: list[dict[str, Any]] = []
-        last_error: Exception | None = None
-
-        for attempt in range(1, max(1, max_attempts) + 1):
-            try:
-                result = run_retrieval_tool(question)
-            except Exception as error:
-                last_error = error
-                attempts.append(
+        try:
+            output = run_retrieval_tool(question)
+        except Exception as error:
+            return ToolResult(
+                tool_name=plan.tool.name,
+                status="failed",
+                output={
+                    "error_type": type(error).__name__,
+                    "error": str(error),
+                },
+                attempts=[
                     {
-                        "attempt": attempt,
+                        "attempt": 1,
                         "status": "failed",
                         "error_type": type(error).__name__,
                         "error": str(error),
                     }
-                )
-                continue
-
-            attempts.append(
-                {
-                    "attempt": attempt,
-                    "status": "success",
-                }
-            )
-
-            return ToolResult(
-                tool_name=plan.tool.name,
-                status="success",
-                output=result,
-                attempts=attempts,
+                ],
             )
 
         return ToolResult(
             tool_name=plan.tool.name,
-            status="failed",
-            output={
-                "error_type": type(last_error).__name__,
-                "error": str(last_error),
-            },
-            attempts=attempts,
+            status="success",
+            output=output,
+            attempts=[
+                {
+                    "attempt": 1,
+                    "status": "success",
+                }
+            ],
         )
 
     if plan.tool.name == "fallback_tool":
@@ -99,14 +163,29 @@ def execute_plan(
 
     if plan.tool.name == "question_decompose_tool":
         question = str((tool_input or {}).get("question", ""))
+        output = run_decomposed_retrieval(question)
+        sub_results = output.get("sub_results", [])
+        failed_sub_results = [
+            sub_result
+            for sub_result in sub_results
+            if isinstance(sub_result, dict)
+            and sub_result.get("status") != "success"
+        ]
+        status = "success"
+
+        if failed_sub_results and len(failed_sub_results) == len(sub_results):
+            status = "failed"
+        elif failed_sub_results:
+            status = "partial_success"
+
         return ToolResult(
             tool_name=plan.tool.name,
-            status="success",
-            output=run_question_decompose_tool(question),
+            status=status,
+            output=output,
             attempts=[
                 {
                     "attempt": 1,
-                    "status": "success",
+                    "status": status,
                 }
             ],
         )

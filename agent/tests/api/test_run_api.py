@@ -144,7 +144,21 @@ def test_run_agent_endpoint_uses_summary_tool_for_summary_question() -> None:
     }
 
 
-def test_run_agent_endpoint_uses_question_decompose_tool_for_comparison_question() -> None:
+def test_run_agent_endpoint_uses_question_decompose_tool_for_comparison_question(
+    monkeypatch,
+) -> None:
+    def fake_retrieval_tool(question: str) -> dict:
+        return {
+            "answer": f"{question} answer",
+            "sources": [],
+            "trace": [],
+        }
+
+    monkeypatch.setattr(
+        "agent_app.orchestration.executor.run_retrieval_tool",
+        fake_retrieval_tool,
+    )
+
     response = client.post(
         "/agent/run",
         json={
@@ -158,14 +172,52 @@ def test_run_agent_endpoint_uses_question_decompose_tool_for_comparison_question
 
     assert "plan" not in data
     assert "tool_result" not in data
-    assert data["answer"] == ""
+    assert data["answer"] == (
+        "1. LangChain 适合做什么？\n"
+        "LangChain 适合做什么？ answer\n\n"
+        "2. LlamaIndex 适合做什么？\n"
+        "LlamaIndex 适合做什么？ answer"
+    )
     assert data["sources"] == []
     assert data["selected_tool"] == "question_decompose_tool"
     assert data["tool_status"] == "success"
     assert data["tool_output"] == {
+        "answer": (
+            "1. LangChain 适合做什么？\n"
+            "LangChain 适合做什么？ answer\n\n"
+            "2. LlamaIndex 适合做什么？\n"
+            "LlamaIndex 适合做什么？ answer"
+        ),
+        "sources": [],
         "sub_questions": [
             "LangChain 适合做什么？",
             "LlamaIndex 适合做什么？",
+        ],
+        "sub_results": [
+            {
+                "question": "LangChain 适合做什么？",
+                "status": "success",
+                "answer": "LangChain 适合做什么？ answer",
+                "sources": [],
+                "attempts": [
+                    {
+                        "attempt": 1,
+                        "status": "success",
+                    }
+                ],
+            },
+            {
+                "question": "LlamaIndex 适合做什么？",
+                "status": "success",
+                "answer": "LlamaIndex 适合做什么？ answer",
+                "sources": [],
+                "attempts": [
+                    {
+                        "attempt": 1,
+                        "status": "success",
+                    }
+                ],
+            },
         ],
         "reason": "question contains explicit multi-part intent",
         "decomposition_strategy": "comparison",
@@ -227,18 +279,6 @@ def test_run_agent_endpoint_returns_failed_tool_result_when_retrieval_fails(
             "attempts": [
                 {
                     "attempt": 1,
-                    "status": "failed",
-                    "error_type": "RuntimeError",
-                    "error": "rag unavailable",
-                },
-                {
-                    "attempt": 2,
-                    "status": "failed",
-                    "error_type": "RuntimeError",
-                    "error": "rag unavailable",
-                },
-                {
-                    "attempt": 3,
                     "status": "failed",
                     "error_type": "RuntimeError",
                     "error": "rag unavailable",

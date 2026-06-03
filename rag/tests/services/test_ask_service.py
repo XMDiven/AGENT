@@ -260,6 +260,90 @@ def test_ask_question_retries_answer_generation_once(monkeypatch) -> None:
     }
 
 
+def test_ask_question_retries_retrieval_once(monkeypatch) -> None:
+    documents = [
+        Document(
+            page_content="LangChain is a framework for developing applications.",
+            metadata={
+                "source": "data/raw/langchain-docs.md",
+                "section_path": "Introduction > Overview",
+            },
+        )
+    ]
+
+    mock_retriever = Mock()
+    mock_retriever.invoke.side_effect = [
+        RuntimeError("temporary qdrant failure"),
+        documents,
+    ]
+
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_retriever",
+        lambda top_k=None: mock_retriever,
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.format_context",
+        lambda docs: "formatted context",
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_client",
+        lambda: "fake-llm",
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_qa_prompt",
+        lambda: "fake-prompt",
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.generate_answer",
+        lambda question, context, prompt, llm: "LangChain 是一个用于构建 LLM 应用的框架。",
+    )
+
+    result = ask_question("LangChain 是什么？")
+
+    assert result["answer"] == "LangChain 是一个用于构建 LLM 应用的框架。"
+    assert mock_retriever.invoke.call_count == 2
+
+    retry_trace = result["trace"][2]
+    assert retry_trace["step"] == "retrieval"
+    assert retry_trace["status"] == "retrying"
+    assert retry_trace["detail"]["attempt"] == 1
+    assert retry_trace["detail"]["error_type"] == "RuntimeError"
+    assert retry_trace["detail"]["retrieval_query"] == "LangChain 是什么？"
+    assert retry_trace["detail"]["top_k"] == config.RETRIEVAL_TOP_K
+    assert "duration_seconds" in retry_trace["detail"]
+
+    completed_trace = result["trace"][3]
+    assert completed_trace["step"] == "retrieval"
+    assert completed_trace["status"] == "completed"
+    assert completed_trace["detail"]["attempt"] == 2
+    assert completed_trace["detail"]["document_count"] == 1
+
+
+def test_ask_question_returns_fallback_when_retrieval_fails(
+    monkeypatch,
+) -> None:
+    mock_retriever = Mock()
+    mock_retriever.invoke.side_effect = RuntimeError("qdrant unavailable")
+
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_retriever",
+        lambda top_k=None: mock_retriever,
+    )
+
+    result = ask_question("LangChain 是什么？")
+
+    assert result["answer"] == config.FALLBACK_ANSWER
+    assert result["sources"] == []
+    assert mock_retriever.invoke.call_count == config.MAX_RETRIEVAL_RETRY + 1
+
+    failed_trace = result["trace"][-1]
+    assert failed_trace["step"] == "retrieval"
+    assert failed_trace["status"] == "failed"
+    assert failed_trace["detail"]["attempt"] == config.MAX_RETRIEVAL_RETRY + 1
+    assert failed_trace["detail"]["error_type"] == "RuntimeError"
+    assert failed_trace["detail"]["retrieval_query"] == "LangChain 是什么？"
+
+
 def test_ask_question_returns_fallback_when_no_documents(monkeypatch) -> None:
     mock_retriever = Mock()
     mock_retriever.invoke.return_value = []

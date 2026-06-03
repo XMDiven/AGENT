@@ -82,10 +82,26 @@ def test_execute_plan_runs_summary_tool() -> None:
     ]
 
 
-def test_execute_plan_runs_question_decompose_tool() -> None:
+def test_execute_plan_runs_question_decompose_tool(monkeypatch) -> None:
     plan = AgentPlan(
         tool=get_tool("question_decompose_tool"),
         reason="question contains comparison or multi-part intent",
+    )
+
+    def fake_retrieval_tool(question: str) -> dict:
+        return {
+            "answer": f"{question} answer",
+            "sources": [
+                {
+                    "source": question,
+                }
+            ],
+            "trace": [],
+        }
+
+    monkeypatch.setattr(
+        "agent_app.orchestration.executor.run_retrieval_tool",
+        fake_retrieval_tool,
     )
 
     result = execute_plan(
@@ -98,9 +114,57 @@ def test_execute_plan_runs_question_decompose_tool() -> None:
     assert result.tool_name == "question_decompose_tool"
     assert result.status == "success"
     assert result.output == {
+        "answer": (
+            "1. LangChain 适合做什么？\n"
+            "LangChain 适合做什么？ answer\n\n"
+            "2. LlamaIndex 适合做什么？\n"
+            "LlamaIndex 适合做什么？ answer"
+        ),
+        "sources": [
+            {
+                "source": "LangChain 适合做什么？",
+            },
+            {
+                "source": "LlamaIndex 适合做什么？",
+            },
+        ],
         "sub_questions": [
             "LangChain 适合做什么？",
             "LlamaIndex 适合做什么？",
+        ],
+        "sub_results": [
+            {
+                "question": "LangChain 适合做什么？",
+                "status": "success",
+                "answer": "LangChain 适合做什么？ answer",
+                "sources": [
+                    {
+                        "source": "LangChain 适合做什么？",
+                    }
+                ],
+                "attempts": [
+                    {
+                        "attempt": 1,
+                        "status": "success",
+                    }
+                ],
+            },
+            {
+                "question": "LlamaIndex 适合做什么？",
+                "status": "success",
+                "answer": "LlamaIndex 适合做什么？ answer",
+                "sources": [
+                    {
+                        "source": "LlamaIndex 适合做什么？",
+                    }
+                ],
+                "attempts": [
+                    {
+                        "attempt": 1,
+                        "status": "success",
+                    }
+                ],
+            },
         ],
         "reason": "question contains explicit multi-part intent",
         "decomposition_strategy": "comparison",
@@ -109,6 +173,65 @@ def test_execute_plan_runs_question_decompose_tool() -> None:
         {
             "attempt": 1,
             "status": "success",
+        }
+    ]
+
+
+def test_execute_plan_marks_question_decompose_partial_success(
+    monkeypatch,
+) -> None:
+    plan = AgentPlan(
+        tool=get_tool("question_decompose_tool"),
+        reason="question contains comparison or multi-part intent",
+    )
+
+    def partially_failing_retrieval_tool(question: str) -> dict:
+        if "LlamaIndex" in question:
+            raise RuntimeError("rag unavailable")
+
+        return {
+            "answer": "LangChain answer",
+            "sources": [],
+            "trace": [],
+        }
+
+    monkeypatch.setattr(
+        "agent_app.orchestration.executor.run_retrieval_tool",
+        partially_failing_retrieval_tool,
+    )
+
+    result = execute_plan(
+        plan,
+        tool_input={
+            "question": "LangChain 和 LlamaIndex 分别适合做什么？",
+        },
+    )
+
+    assert result.tool_name == "question_decompose_tool"
+    assert result.status == "partial_success"
+    assert result.output["answer"] == (
+        "1. LangChain 适合做什么？\nLangChain answer"
+    )
+    assert result.output["sub_results"][1] == {
+        "question": "LlamaIndex 适合做什么？",
+        "status": "failed",
+        "answer": "",
+        "sources": [],
+        "attempts": [
+            {
+                "attempt": 1,
+                "status": "failed",
+                "error_type": "RuntimeError",
+                "error": "rag unavailable",
+            }
+        ],
+        "error_type": "RuntimeError",
+        "error": "rag unavailable",
+    }
+    assert result.attempts == [
+        {
+            "attempt": 1,
+            "status": "partial_success",
         }
     ]
 
@@ -138,53 +261,42 @@ def test_execute_plan_returns_failed_result_for_unsupported_tool() -> None:
     ]
 
 
-def test_execute_plan_retries_retrieval_tool_until_success(monkeypatch) -> None:
+def test_execute_plan_does_not_retry_retrieval_tool(monkeypatch) -> None:
     plan = AgentPlan(
         tool=get_tool("retrieval_tool"),
         reason="question requires knowledge retrieval",
     )
-    expected = {
-        "answer": "RAG answer",
-        "sources": [],
-        "trace": [],
-    }
     calls = {"count": 0}
 
-    def flaky_retrieval_tool(question: str) -> dict:
+    def raise_error(question: str) -> None:
         calls["count"] += 1
-
-        if calls["count"] == 1:
-            raise RuntimeError("temporary rag error")
-
-        return expected
+        raise RuntimeError("rag unavailable")
 
     monkeypatch.setattr(
         "agent_app.orchestration.executor.run_retrieval_tool",
-        flaky_retrieval_tool,
+        raise_error,
     )
 
     result = execute_plan(
         plan,
         tool_input={"question": "What is RAG?"},
-        max_attempts=3,
     )
 
     assert result.tool_name == "retrieval_tool"
-    assert result.status == "success"
-    assert result.output == expected
+    assert result.status == "failed"
+    assert result.output == {
+        "error_type": "RuntimeError",
+        "error": "rag unavailable",
+    }
     assert result.attempts == [
         {
             "attempt": 1,
             "status": "failed",
             "error_type": "RuntimeError",
-            "error": "temporary rag error",
-        },
-        {
-            "attempt": 2,
-            "status": "success",
+            "error": "rag unavailable",
         },
     ]
-    assert calls["count"] == 2
+    assert calls["count"] == 1
 
 
 def test_execute_plan_returns_failed_result_when_retrieval_tool_fails(
@@ -217,18 +329,6 @@ def test_execute_plan_returns_failed_result_when_retrieval_tool_fails(
     assert result.attempts == [
         {
             "attempt": 1,
-            "status": "failed",
-            "error_type": "RuntimeError",
-            "error": "rag unavailable",
-        },
-        {
-            "attempt": 2,
-            "status": "failed",
-            "error_type": "RuntimeError",
-            "error": "rag unavailable",
-        },
-        {
-            "attempt": 3,
             "status": "failed",
             "error_type": "RuntimeError",
             "error": "rag unavailable",

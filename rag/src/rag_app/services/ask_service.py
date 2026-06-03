@@ -11,7 +11,7 @@ from rag_app.generation.qa_prompt import get_qa_prompt
 from rag_app.infrastructure.llm_client import get_client
 from rag_app.retrieval.query_analyzer import analyze_query
 from rag_app.retrieval.retriever import get_retriever
-from rag_app.retrieval.retrieval_planner import plan_retrieval
+from rag_app.retrieval.retrieval_planner import RetrievalPlan, plan_retrieval
 
 
 def interleave_documents_by_source(documents: list[Document]) -> list[Document]:
@@ -98,6 +98,105 @@ def build_sources(documents: list[Document]) -> list[dict[str, str]]:
     return sources
 
 
+def build_retrieval_trace_detail(
+    retrieval_plan: RetrievalPlan,
+    duration_seconds: float,
+    attempt: int | None = None,
+    documents: list[Document] | None = None,
+    error: Exception | None = None,
+) -> dict[str, Any]:
+    detail: dict[str, Any] = {
+        "retrieval_strategy": retrieval_plan.retrieval_strategy,
+        "retrieval_query": retrieval_plan.retrieval_query,
+        "top_k": retrieval_plan.top_k,
+        "duration_seconds": round(duration_seconds, 2),
+    }
+
+    if attempt is not None:
+        detail["attempt"] = attempt
+
+    if documents is not None:
+        detail["document_count"] = len(documents)
+        detail["retrieved_sources"] = build_retrieved_sources(documents)
+
+    if error is not None:
+        detail["error_type"] = type(error).__name__
+
+    return detail
+
+
+def retrieve_documents_with_retry(
+    retrieval_plan: RetrievalPlan,
+    trace: list[dict[str, Any]],
+) -> list[Document]:
+    max_attempts = config.MAX_RETRIEVAL_RETRY + 1
+    last_error: Exception | None = None
+    last_retrieval_duration_seconds = 0.0
+
+    for attempt in range(1, max_attempts + 1):
+        retrieval_start = perf_counter()
+
+        try:
+            retriever = get_retriever(top_k=retrieval_plan.top_k)
+            documents = retriever.invoke(retrieval_plan.retrieval_query)
+        except Exception as exc:
+            last_error = exc
+            last_retrieval_duration_seconds = perf_counter() - retrieval_start
+
+            if attempt < max_attempts:
+                trace.append(
+                    build_trace_item(
+                        step="retrieval",
+                        status="retrying",
+                        detail=build_retrieval_trace_detail(
+                            retrieval_plan=retrieval_plan,
+                            duration_seconds=last_retrieval_duration_seconds,
+                            attempt=attempt,
+                            error=exc,
+                        ),
+                    )
+                )
+
+            continue
+
+        retrieval_duration_seconds = perf_counter() - retrieval_start
+        documents = apply_retrieval_strategy(
+            documents=documents,
+            retrieval_strategy=retrieval_plan.retrieval_strategy,
+        )
+
+        attempt_detail = attempt if attempt > 1 else None
+        trace.append(
+            build_trace_item(
+                step="retrieval",
+                detail=build_retrieval_trace_detail(
+                    retrieval_plan=retrieval_plan,
+                    duration_seconds=retrieval_duration_seconds,
+                    attempt=attempt_detail,
+                    documents=documents,
+                ),
+            )
+        )
+
+        return documents
+
+    if last_error is not None:
+        trace.append(
+            build_trace_item(
+                step="retrieval",
+                status="failed",
+                detail=build_retrieval_trace_detail(
+                    retrieval_plan=retrieval_plan,
+                    duration_seconds=last_retrieval_duration_seconds,
+                    attempt=max_attempts,
+                    error=last_error,
+                ),
+            )
+        )
+
+    return []
+
+
 def ask_question(question: str) -> dict[str, Any]:
     trace: list[dict[str, Any]] = []
     analysis = analyze_query(question)
@@ -150,30 +249,9 @@ def ask_question(question: str) -> dict[str, Any]:
             "sources": [],
             "trace": trace,
         }
-    retrieval_start = perf_counter()
-
-    retriever = get_retriever(top_k=retrieval_plan.top_k)
-    documents = retriever.invoke(retrieval_plan.retrieval_query)
-
-    retrieval_duration_seconds = perf_counter() - retrieval_start
-
-    documents = apply_retrieval_strategy(
-        documents=documents,
-        retrieval_strategy=retrieval_plan.retrieval_strategy,
-    )
-
-    trace.append(
-        build_trace_item(
-            step="retrieval",
-            detail={
-                "retrieval_strategy": retrieval_plan.retrieval_strategy,
-                "retrieval_query": retrieval_plan.retrieval_query,
-                "top_k": retrieval_plan.top_k,
-                "document_count": len(documents),
-                "retrieved_sources": build_retrieved_sources(documents),
-                "duration_seconds": round(retrieval_duration_seconds, 2),
-            },
-        )
+    documents = retrieve_documents_with_retry(
+        retrieval_plan=retrieval_plan,
+        trace=trace,
     )
 
     if not documents:

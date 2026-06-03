@@ -14,6 +14,7 @@ RETRIEVAL_TOP_K: int = int(os.getenv("RETRIEVAL_TOP_K", "7"))
 
 COLLECTION_NAME: str | None = os.getenv("QDRANT_COLLECTION")
 
+MAX_RETRIEVAL_RETRY: int = 1
 MAX_GENERATION_RETRY: int = 1
 
 

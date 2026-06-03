@@ -241,6 +241,14 @@ def test_execute_plan_returns_failed_result_for_unsupported_tool() -> None:
         tool=ToolDefinition(
             name="unknown_tool",
             description="Unknown tool.",
+            input_schema={
+                "type": "object",
+                "properties": {},
+            },
+            output_schema={
+                "type": "object",
+                "properties": {},
+            },
         ),
         reason="unsupported test case",
     )

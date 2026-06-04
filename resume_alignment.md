@@ -1,1165 +1,239 @@
-# 给 Codex 的简历对齐与项目建设指南
+# 项目精进作战地图（Living Build Playbook）
 
-> 本文件用于约束 Codex 在本仓库中如何一步一步指导用户，把项目推进到能够真实支撑简历项目经历的状态。
-> 核心原则：先看代码和证据，再决定下一步；先补真实能力，再升级简历表述。
-
----
-
-## 0. 当前扫描基线
-
-最近一次扫描日期：2026-06-03。
-
-本文件基于以下事实生成：
-
-- 简历文件：`/Users/mdiven/Documents/Resume/Resume.docx`
-- 当前仓库：`/Users/mdiven/Code/Projects/AGENT`
-- 已扫描子项目：`rag`、`agent`
-- 已扫描实验记录：`rag/experiments/`
-- 已验证测试：
-  - `cd rag && conda run -n AI_DEV pytest tests/ -q`：`87 passed`
-  - `cd agent && conda run -n AI_DEV pytest tests/ -q`：`38 passed`
-
-当前 git 工作区存在一个与本指南无直接关系的未跟踪文件：
-
-- `agent_ai_app_interview_prep.html`
-
-Codex 后续工作时不得把简历中的强表述直接当作项目事实。每次建议代码前，都应先回答：
-
-1. 当前代码已经证明了什么？
-2. 简历目标还缺什么证据？
-3. 最小下一步是什么？
-4. 做完后用什么测试、报告或演示验证？
-5. 哪句简历可以升级，哪句仍然不能写？
+> 读者：本仓库拥有者（大三，目标 AI 应用开发 / LLM Engineering 实习）。
+> 用途：扎根**真实代码**，让 AI 一步一步驱动你精进项目，并把项目**维持**在「实习有竞争力」的水平。
+> 这是一份**活文档**：项目每前进一步，就回来更新「§2 进度看板」和「§4 现状评估」。它不是写完就放着的报告。
+> 写法约定：正文中文 + 英文技术术语/库名。铁律：先看代码再下结论，每条判断都指向具体文件。
+> 当前阶段：**先把项目做扎实，简历等项目推进到位后再同步**——本文件只谈代码与工程，不写简历表述。
 
 ---
 
-## 1. 最终简历目标
+## ★ 给 AI 的使用协议（每次进入仓库先读这一节）
 
-用户目标岗位：**AI 应用开发实习**。
+你是协助本仓库拥有者精进项目、维持实习竞争力的**工程教练**。每次按以下循环工作，不要一次性堆完所有事：
 
-简历当前写了三段项目经历：
-
-1. **基于 RAG 的智能知识库问答系统**
-2. **LLM Agent 多工具编排系统**
-3. **LLM Prompt 效果自动评测平台**
-
-Codex 的默认任务不是一次性堆满所有功能，而是持续帮助用户把仓库推进到“面试时能讲清、代码里能指到、测试里能验证、报告里能量化”的状态。
-
----
-
-## 2. 当前仓库事实
-
-### 2.1 `rag` 子项目
-
-当前定位：RAG 问答后端和 Prompt 评测基础。
-
-当前较安全能力：
-
-- FastAPI 应用入口：`rag/src/rag_app/app/main.py`
-- 文档上传接口：
-  - `POST /documents/upload`
-  - `POST /documents/upload/batch`
-- 单文件入库接口：
-  - `POST /documents/ingest`
-- 支持 Markdown / PDF 文件保存、解析、切分、向量化入库
-- 上传文件只允许 `.md` 和 `.pdf`
-- 上传和入库均做安全文件名处理，避免路径穿越
-- Qdrant 向量库写入和检索
-- `/ask` 非流式问答接口
-- `/ask/stream` NDJSON 流式问答接口
-- 返回 `answer`、`sources`、`trace`
-- 轻量问题分析：`empty`、`general`、`comparison`、`summary`
-- 检索规划：`skip_retrieval`、`standard_retrieval`、`comparison_retrieval`
-- comparison 问题会交错多来源文档，提升多来源覆盖
-- 向量检索失败时在 RAG 服务层进行有限重试：`MAX_RETRIEVAL_RETRY = 1`，即总计 2 次 retrieval attempt
-- 回答生成失败时最多重试 1 次，即总计 2 次 generation attempt
-- Prompt 版本：`qa_prompt_v1`、`qa_prompt_v2`
-- 离线检索评估和回答评估
-- LLM-as-Judge 结构化评分：
-  - relevance
-  - completeness
-  - groundedness
-  - format
-- Prompt A/B 对比报告
-- Prompt eval API：
-  - `GET /prompt-evals/reports`
-  - `GET /prompt-evals/reports/{run_id}`
-  - `GET /prompt-evals/comparison/latest`
-  - `POST /prompt-evals/run`
-- `POST /prompt-evals/run` 支持通过 `prompt_version` 和可选 `case_limit` 同步触发小样本 LLM-as-Judge 评测并保存 report
-- latency benchmark 脚本和报告
-- 100 页 PDF 摄入验证报告
-
-### 2.2 `agent` 子项目
-
-当前定位：建立在 RAG 之上的轻量 Agent 编排层。
-
-当前较安全能力：
-
-- FastAPI 应用入口：`agent/src/agent_app/app/main.py`
-- API：
-  - `POST /agent/run`
-  - `GET /agent/tools`
-  - `GET /health`
-- Service 统一入口：`agent/src/agent_app/service.py`
-- 工具规划：`agent/src/agent_app/orchestration/planner.py`
-- 工具执行：`agent/src/agent_app/orchestration/executor.py`
-- 状态对象：`agent/src/agent_app/orchestration/state.py`
-- 工具注册表：`agent/src/agent_app/tools/registry.py`
-- 工具注册表为每个工具定义 `input_schema` 和 `output_schema`，明确工具调用契约
-- `GET /agent/tools` 暴露当前已注册工具的能力列表和输入输出契约
-- RAG 检索工具：`agent/src/agent_app/tools/retrieval.py`
-- 本地确定性摘要工具：`agent/src/agent_app/tools/summary.py`
-- 工具：
-  - `retrieval_tool`
-  - `summary_tool`
-  - `question_decompose_tool`
-  - `fallback_tool`
-- 基于 `question_type` 的规则式工具选择
-- `question_decompose_tool` 对比较类和多子问题输入做规则式拆解，并对子问题逐个调用 RAG 检索工具后聚合 `answer`、`sources`、`sub_results`
-- Agent 层不再对 `retrieval_tool` 做 3 次整体 retry；向量检索 retry 下沉到 RAG 服务层
-- 工具失败时返回结构化 `error_type`、`error`、`attempts`
-- Agent trace 记录：
-  - `analyze_question`
-  - `plan_tool`
-  - `execute_tool`
+1. 读「§1 竞争力北极星」确认终点，读「§2 进度看板」确认现在走到哪。
+2. 取进度看板里**第一个未勾选**的任务。**一次只做一个**，不跳步、不并行、不提前做加分项。
+3. 动手前先讲清：成功标准、要改哪些文件、不做什么、需要的环境前置。
+4. 按「§6 路线图」执行对应任务；遇到标「⚠ 人工决策点」的，**先停下问用户**，不要替他决定。
+5. 跑该任务的**验收命令**自证完成；无法用命令验证的，明确说「需人工确认」并说明怎么确认。
+6. 完成后做三件事：① 把看板该项 `[ ]` 改 `[x]` 并填日期；② 把「§4 现状评估」里被修复的条目划掉或降档；③ 汇报（改了哪些文件 / 跑了什么命令 / 是否通过 / 留下什么证据 / 下一步是什么）。
+7. 全程遵守「§7 红线」；拿不准就回到「§3 根本判断」的**深度优先**原则。
 
 ---
 
-## 3. 简历强表述与当前证据边界
+## §1 竞争力北极星（什么叫「有竞争力」）
 
-| 简历表述 | 当前判断 | Codex 后续处理 |
+### 1a 目标岗位考察什么（按与本项目相关度排序）
+
+AI 应用开发 / LLM Engineering 实习通常考察：
+
+1. **RAG 全链路**：切分、embedding、向量检索、召回质量（rerank/hybrid/filter）、引用与防幻觉。 ← 主战场
+2. **LLM 编排**：prompt 设计、结构化输出、function/tool calling、多步 agent/workflow。 ← 第二战场，且最薄
+3. **工程化**：服务化（FastAPI）、配置/密钥管理、错误处理、日志/可观测性、并发正确性。 ← 有底子，有欠账
+4. **质量保障**：测试、eval、对 LLM 输出的回归验证。 ← 相对强项
+5. **部署与成本**：Docker、环境隔离、token/延迟/成本意识。 ← 仅 latency 报告 + Qdrant compose
+6. **数据层**：关系库 / 缓存 / 向量库合理使用。 ← 仅 Qdrant，其余非必需
+7. **能讲清工程权衡**：为什么这么选、瓶颈在哪、如何取舍。 ← 取决于你能否复述本文件所有判断
+
+### 1b 达标线（项目达到这些，才算「有竞争力」）
+
+项目**同时**满足以下四条，即跨过实习竞争力门槛：
+
+1. **真 Agent**：一个基于 native function calling 的工具编排能跑通且有测试（不再是关键词 if/else）。
+2. **有数据的优化**：至少一次检索质量或延迟优化，有定义清晰的指标和 before/after 数据。
+3. **生产像**：async 正确（无阻塞事件循环）、有结构化日志、客户端复用。
+4. **可复现**：一份从零跑通的端到端 demo + 全绿测试 + 新鲜的 eval 报告。
+
+达不到 1–4 之前，**不要横向加新功能**。
+
+### 1c 竞争力是动态的，要「维持」不是「一次达标」
+
+跨过门槛只是起点。岗位要求会变、你会投更多家——所以这份文档要持续运转，见「§8 维持竞争力的循环」。
+
+---
+
+## §2 进度看板（唯一状态源）
+
+> 维护规则：完成一步把 `[ ]` 改 `[x]` 并填日期；不提前勾选；前置门 P-1 必须先过，地基 P0 必须先于 P1/P2。
+
+**前置门（影响所有「需 live stack」的任务）**
+
+| 门 | 内容 | 状态 |
 |---|---|---|
-| PDF 批量上传 | 已支持基础上传 | 可写“支持 Markdown/PDF 单文件与批量上传”；不要把上传等同于自动入库 |
-| 自动解析、向量化入库全流程 | 已有 `/documents/ingest` 和 `build_index` | 可写“上传后可触发单文件入库，或通过 build_index 批量重建索引” |
-| 单文档 100+ 页稳定处理 | 有 100 页 PDF 报告，但仍是单样本离线验证 | 可写“验证 100 页级 PDF”；若简历坚持“100+ 页稳定”，建议补更严格样本和耗时记录 |
-| 文档上传后自动入库 | 未自动触发 | 当前是上传与入库分离；不要写“上传后自动入库” |
-| 流式返回 | 已支持 | 可写“支持 NDJSON 流式返回” |
-| 平均响应时延 2s 内 | 明确不支持 | latency 报告显示平均约 24.43s；不能写 2s |
-| 上下文命中率提升约 20% | 尚缺严格定义 | 有 Top-K 从 10/11 到 11/11 的对比；不能直接写 20% |
-| Fixed-size / Semantic / Recursive 三种 Chunk 策略 | 当前不完整 | 代码主要是 Markdown header + RecursiveCharacterTextSplitter；Semantic 未实现 |
-| ChromaDB / FAISS | 与当前主线不一致 | 当前主线是 Qdrant；若要写 Chroma/FAISS，必须真实实现 |
-| AutoGen | 未实现 | 不应写；更安全写“自建轻量 Agent 编排层” |
-| Function Calling | 未实现；已有工具输入输出 schema 基础 | 不应写 Function Calling；可写“工具输入输出契约”或“为受控 tool calling 做准备” |
-| 网络搜索工具 | 未实现 | 不应写，除非真实接入或明确 mock 边界 |
-| 信息摘要工具 | 基础支持 | 当前是本地确定性摘要，不是 LLM 摘要 |
-| 任务拆解工具 | 已实现最小规则式版本 | 可写“规则式问题拆解工具”；不要写成 LLM 自主规划 |
-| 复杂用户意图自动规划 | 未实现 | 当前是规则式 planner；不要包装成自主规划 |
-| 检索失败自动重试 | 已在 RAG 服务层支持向量检索有限重试 | 可写“对向量检索失败进行有限重试并写入 trace”；不要写成所有工具统一 3 次 retry |
-| 结构化日志 | 部分支持 | 当前是结构化 trace，不是完整日志系统 |
-| Prompt 自动评测平台 | 部分支持 | 有离线评测、LLM-as-Judge、报告读取 API；还不是可配置运行平台 |
-| KIMI Judge | 环境可用 OpenAI-compatible/Moonshot | 可写“接入 OpenAI-compatible/Kimi 类 Judge 模型”，但要以实际 `.env` 和报告为准 |
-| A/B Prompt 对比 | 已有 11 case 对比报告 | 可写“小样本 Prompt A/B 对比”；不能写 80+ 组 |
-| 80+ 组 Prompt 对比、300+ 样本 | 未支持 | 必须真实扩样本和记录运行 |
-| 单次评测耗时 2.8s | 未支持 | 当前 judge 报告耗时远高于 2.8s；不能写 |
-| 30 分钟压缩到 10 分钟 | 未支持 | 需要人工 baseline 和自动流程对比 |
+| P-1 | `.env` 配齐（`LLM_BASE_URL`/`LLM_MODEL_ID`/`MOONSHOT_API_KEY`/`QDRANT_URL`/`QDRANT_COLLECTION`）+ `docker compose up -d qdrant` + `build_index` 已建索引 | [x] 2026-06-04 |
+
+**任务看板**
+
+| # | 任务 | 档位 | 需 live stack | 状态 | 完成日期 |
+|---|---|---|---|---|---|
+| 0.1 | 端到端 demo 落到 `docs/demo/` | 地基 | 是 | [x] | 2026-06-04 |
+| 0.2 | 修 async 错配 + 加结构化日志 | 地基 | 否 | [ ] | |
+| 0.3 | 统一流式/非流式检索重试 + 客户端复用 | 地基 | 部分 | [ ] | |
+| 1.1 | 真实 Function Calling 的 Agent ⚠默认先做 | 深度 | 是 | [ ] | |
+| 1.2 | 可量化的检索质量优化 | 深度 | 是 | [ ] | |
+| 1.3 | 用真工具替换 summary/web_search 桩 | 深度 | 是 | [ ] | |
+| 2.1 | 扩评测样本并留运行记录 | 规模 | 是 | [ ] | |
+| 2.2 | app 加 Dockerfile + pydantic-settings | 规模 | 否 | [ ] | |
 
 ---
 
-## 4. Codex 默认指导格式
+## §3 根本判断（先看这里，再看路线）
 
-用户每次提出新需求时，Codex 应优先用下面格式回答，除非用户明确说“直接实现”。
+技术方向**没有根本错误**：`FastAPI + LangChain + Qdrant + OpenAI-compatible LLM` 主流且适配岗位，分层清晰，有测试有 CI，不需推倒重来。
 
-1. **结论**：这一步是否值得做
-2. **简历对齐**：支撑简历中的哪句话
-3. **当前状态**：仓库已有哪个基础
-4. **最小缺口**：还差什么
-5. **建议任务**：这一步只做什么
-6. **不做什么**：明确排除范围，避免过度设计
-7. **验收方式**：测试、命令、报告或 API 演示
-8. **简历影响**：完成后哪句更安全，哪句仍不能写
+但有一个**结构性短板**：**被当头牌的「Agent」恰恰是最薄的一层。** `planner.py` 是关键词 if/else 路由，`summary_tool` 是字符串截断（`summary.py:1-16`），`question_decompose` 是单一 `"分别"` 分隔符的字符串切分（`question_decompose.py:39-66`）。对 LLM Engineering 岗，这层是考察重点，却是 demo 级。
 
-如果用户问“下一步做什么”，Codex 应从当前代码状态出发，推荐最小、可验证、最直接支撑简历的任务。
-
-如果用户要求写代码，Codex 应先定义成功标准，再做小步改动，并在完成后运行对应测试。
+**总策略：停止横向加功能，纵向把一条线做深。** 五个浅 demo 不如一条「真 function calling + 测试 + trace」的工具链做到接近生产质量。深度 > 广度——这是区分「调过 API 的人」和「能做 LLM 工程的人」的关键。
 
 ---
 
-## 5. 总体建设顺序
+## §4 现状评估（三档 + 文件证据）
 
-Codex 应按下面顺序指导用户推进，不要跳阶段：
+> AI 修复某问题后，回来把对应条目划掉或降档，保持这张表反映**当前**真实状态。括号里的「→任务 X」是修它的任务。
 
-1. **阶段 0：证据基线整理**
-2. **阶段 1：RAG 简历目标补齐**
-3. **阶段 2：Agent 编排目标补齐**
-4. **阶段 3：Prompt 评测平台目标补齐**
-5. **阶段 4：最终简历措辞回收与降级检查**
+### A 档：已实现、接近可用质量
 
-优先级原则：
+- **清晰分层**：`app/routers → services → retrieval|generation|ingestion|evaluation → infrastructure → config|schemas`，职责分离干净。最强工程信号。
+- **真实测试 + CI**：`rag/tests` 91 个 test 函数、`agent/tests` 38 个；`.github/workflows/tests.yml` 在 push/PR 跑两套 pytest。（精确 passed 数以实跑为准，历史 87 passed。）
+- **安全意识**：path-traversal 防护——`documents.py:17-35,52-62` 用 `Path(filename).name`；`prompt_eval_service.py:31-37` 校验 report 父目录。
+- **结构化 trace 贯穿全链路**：`ask_service.py:74-83,200-342`、`service.py:52-75`。
+- **检索 + 生成有限重试**：`ask_service.py:128-197`、`264-342`，失败落 `FALLBACK_ANSWER`。
+- **评估闭环（真亮点）**：LLM-as-Judge + Pydantic，`judge_schema.py:9-31` 用 `model_validator` 强制 `overall_pass` 由四维分数推导，杜绝模型自评注水；A/B 与报告持久化（`prompt_eval_service.py`）。
 
-- 先做最接近当前仓库的能力
-- 先做能测试、能演示、能写报告的能力
-- 不为简历堆无用框架
-- 不为了匹配词汇强行引入 AutoGen、FAISS 或复杂前端
-- 每次实现后必须回到简历表述，判断能否升级
+### B 档：原型级（能跑，缺边界 / 可观测 / 一致性）
 
----
+- **async/sync 错配（生产隐患）**：`/ask`、`/ingest` 是 `async def` 却调阻塞同步 I/O（`ask.py:24-27`、`documents.py:86-92`），高并发阻塞事件循环。（→任务 0.2）
+- **流式与非流式不一致**：`stream_ask_question` 直接 `retriever.invoke()`，**无**重试（`ask_service.py:398-399` vs `128-197`）。（→任务 0.3）
+- **零日志**：全仓库 grep 不到 `logging`，只有 in-band trace。（→任务 0.2）
+- **客户端无复用**：`get_client`/`get_vector_store`/`get_retriever` 每请求重建（`llm_client.py:9-29`、`vector_store.py:15-27`、`retriever.py:5-14`）。（→任务 0.3）
+- **配置半集中**：`CHUNK_SIZE/CHUNK_OVERLAP` 硬编码 `config.py:11-12`；`load_dotenv` 三处重复；`vector_store.py:16` 直接 `os.getenv` 绕过 config。（→任务 2.2）
+- **无 lint/type 检查**：有类型标注但无 mypy/ruff，dev 依赖只有 pytest。
 
-## 6. 阶段 0：证据基线整理
+### C 档：声称有、实际很薄（命名与实现风险）
 
-### 目标
+- **`summary_tool` 不是摘要**：`summary.py` 是 `text[:200]` 截断。（→任务 1.3）
+- **`question_decompose` 极脆**：只有 `"分别"` 一个可靠切分模式，否则原样返回（`question_decompose.py:62-66`）。（→任务 1.1 改造后弱化）
+- **planner 是关键词 if/else**：`planner.py:13-35`，无 LLM、无 function calling。（→任务 1.1）
+- **chunking 只有两种**：Markdown=header+Recursive、PDF=Recursive；**代码中未发现** fixed-size 抽象或 semantic chunker。
+- **检索只是 plain similarity top-k**：`retriever.py:9-12`，无 rerank/hybrid/MMR/filter。（→任务 1.2）
+- **评测样本极小**：11 golden cases、2 prompt 版本、3 个 judge run。（→任务 2.1）
 
-先把当前已经完成的能力固定成证据，避免后续 Codex 反复猜测项目状态。
-
-### Codex 应指导用户完成
-
-1. 运行 RAG 测试：
-
-   ```bash
-   cd rag
-   conda run -n AI_DEV pytest tests/ -q
-   ```
-
-2. 运行 Agent 测试：
-
-   ```bash
-   cd agent
-   conda run -n AI_DEV pytest tests/ -q
-   ```
-
-3. 如需要更新评估基线，再运行 RAG eval：
-
-   ```bash
-   cd rag
-   docker compose up -d qdrant
-   conda run -n AI_DEV python -m rag_app.scripts.reset_index
-   conda run -n AI_DEV python -m rag_app.scripts.build_index
-   conda run -n AI_DEV python -m rag_app.scripts.run_eval
-   ```
-
-4. 保存或确认以下证据：
-
-   - RAG 测试通过数量
-   - Agent 测试通过数量
-   - 最新 `experiments/evaluation_runs/*.json`
-   - 最新 `experiments/judge_runs/*.json`
-   - `/ask` 示例响应
-   - `/ask/stream` 示例输出
-   - `/documents/upload` 示例响应
-   - `/documents/ingest` 示例响应
-   - `/agent/run` 示例响应
-
-### 完成后安全简历说法
-
-```text
-基于 FastAPI 实现 RAG 问答后端，支持文档摄入、语义检索、来源引用返回，并通过离线评估脚本验证检索与回答质量。
-```
-
-### 仍不能写
-
-- 2s 延迟
-- 80+ Prompt 对比
-- 300+ 样本
-- AutoGen
-- Function Calling
-- 外部网络搜索工具
-- 复杂自主规划
+### 最严重的工程问题（按对生产质量影响排序）
+1. async 路由跑阻塞 I/O（并发正确性）→任务 0.2
+2. 完全没有日志/可观测性（不可运维）→任务 0.2
+3. 流式与非流式健壮性不一致→任务 0.3
+4. 核心 Agent 逻辑是字符串规则（岗位短板）→任务 1.1
+5. 客户端每请求重建 + 配置分散→任务 0.3 / 2.2
 
 ---
 
-## 7. 阶段 1：RAG 简历目标补齐
+## §5 差距分析
 
-### 目标
+**已能证明（可指着代码讲）**：端到端 RAG（ingest→chunk→检索→grounded generation→来源引用→trace）；评估工程化（eval + LLM-as-Judge + A/B + 报告）；基础工程（分层、测试、CI、防护、有限重试）。
 
-让 `rag` 子项目尽量接近最终简历第一段：
+**还缺（岗位会问、当前答不上）**：真 function/tool calling 与 LLM 驱动编排；检索质量优化手段；可观测性与并发正确性；可量化可复现的结论。
 
-```text
-PDF 批量上传 -> 自动解析 -> 向量化入库 -> 语义检索 -> 问答接口 -> 流式返回 -> 来源引用 -> 检索调优证据
-```
-
-### 1.1 文档上传与入库链路
-
-当前状态：
-
-- 已有 `/documents/upload`
-- 已有 `/documents/upload/batch`
-- 已有 `/documents/ingest`
-- 上传接口只保存到 `data/raw/`
-- `/documents/ingest` 对单个已上传文件执行解析、切分、向量化入库
-- 批量重建索引仍通过 `build_index`
-
-Codex 下一步应指导：
-
-1. 不要把上传接口直接说成自动入库。
-2. 先把“上传”和“入库”两个步骤讲清楚。
-3. 若用户想更贴近简历，可新增最小的 batch ingest 能力，而不是把复杂逻辑塞进 upload router。
-
-验收证据：
-
-- `rag/tests/api/test_documents_api.py`
-- README 中 `/documents/upload`、`/documents/upload/batch`、`/documents/ingest` 示例
-- 手动演示一次：上传文件 -> 调用 `/documents/ingest` -> 返回 `document_count`、`chunk_count`、`stored_count`
-
-安全简历说法：
-
-```text
-支持 Markdown/PDF 单文件与批量上传，并提供单文件入库接口完成解析、切分和向量化写入。
-```
-
-只有实现并验证后才能写：
-
-```text
-支持上传后自动入库。
-```
-
-### 1.2 100 页级 PDF 处理
-
-当前状态：
-
-- 已有报告：`rag/experiments/large_pdf_ingestion_report.md`
-- 报告验证了 `gpt4_technical_report.pdf` 共 100 页
-- 历史入库记录：`documents=100`、`chunks=452`、`stored=452`
-- 当前 Qdrant count 验证为 452
-- 评估 case 命中该 PDF 来源
-
-Codex 下一步应指导：
-
-1. 如果用户只需要面试可讲，先保留现有报告。
-2. 如果简历坚持“100+ 页稳定处理”，建议补一次更严格验证：
-   - 使用大于 100 页的 PDF
-   - 重新运行完整 build_index 或单文件 ingest
-   - 记录耗时、chunk 数、stored 数、失败情况
-3. 不要把单样本离线验证包装成生产级稳定性。
-
-验收证据：
-
-- `rag/experiments/large_pdf_ingestion_report.md`
-- 对应 eval report
-- 必要时新增更新后的大文档报告
-
-安全简历说法：
-
-```text
-验证 100 页级 PDF 的解析、切分、向量化入库和检索命中流程，并记录 documents/chunks/stored 等处理结果。
-```
-
-谨慎写法：
-
-```text
-在本地实验环境验证单文档 100 页级 PDF 的知识库构建流程。
-```
-
-### 1.3 问答接口、来源引用与 trace
-
-当前状态：
-
-- 已有 `/ask`
-- 返回 `answer`
-- 返回结构化 `sources`
-- 返回 RAG trace
-- trace 包含 query analysis、retrieval planning、retrieval、generation
-- answer eval 检查来源、fallback、元数据泄漏和 v2 输出结构
-
-Codex 下一步应指导：
-
-1. 保持响应结构稳定。
-2. 补充 1 到 2 个面试演示问题。
-3. 如果改动 prompt 或 sources 契约，必须重新跑对应测试。
-
-验收证据：
-
-- `rag/tests/api/test_ask_api.py`
-- `rag/tests/services/test_ask_service.py`
-- `rag/experiments/evaluation_runs/*.json`
-
-安全简历说法：
-
-```text
-封装问答接口，返回带来源引用的 grounded answer，并通过回答评估检查来源契约。
-```
-
-### 1.4 流式返回
-
-当前状态：
-
-- 已有 `/ask/stream`
-- 使用 `application/x-ndjson`
-- 返回事件：
-  - `answer_delta`
-  - `sources`
-  - `trace`
-  - `done`
-
-Codex 下一步应指导：
-
-1. 不重复实现 streaming endpoint。
-2. 保留手动演示记录。
-3. 如果继续优化，再拆分首 token 延迟和完整回答耗时。
-
-验收证据：
-
-- `rag/tests/api/test_ask_api.py`
-- README curl 示例
-- 手动 `curl -N` 输出
-
-安全简历说法：
-
-```text
-支持基于 NDJSON 事件的流式问答返回。
-```
-
-### 1.5 延迟 benchmark
-
-当前状态：
-
-- 已有脚本：`rag/src/rag_app/scripts/benchmark_latency.py`
-- 已有报告：`rag/experiments/latency_benchmark.md`
-- 当前有效基线平均耗时约 `24.43s`
-- 主要瓶颈是 LLM 生成阶段，不是 Qdrant 检索阶段
-- 当前不能支撑“2s 内”
-
-Codex 下一步应指导：
-
-1. 不要为了简历硬写 2s。
-2. 若要优化延迟，优先验证生成侧变量：
-   - 更快模型
-   - 更短 prompt
-   - 更短回答长度
-   - 更小上下文 token budget
-3. 每次优化都必须更新 benchmark 报告，而不是只看一次手动调用。
-
-验收证据：
-
-- `rag/experiments/latency_benchmark.md`
-- benchmark 命令输出
-- 平均值、最大值、最小值、case 明细
-
-当前安全简历说法：
-
-```text
-设计 RAG latency benchmark，对完整问答链路进行分段耗时统计，并定位主要瓶颈来自 LLM 生成阶段。
-```
-
-当前不能写：
-
-```text
-平均响应时延控制在 2s 以内。
-```
-
-### 1.6 检索调优与命中率提升
-
-当前状态：
-
-- 已有报告：`rag/experiments/retrieval_chunk_experiment.md`
-- chunk size 对比覆盖 200/400/800
-- Top-K 对比中，从 `top_k=2` 的 `10/11` 到 `top_k=5/7` 的 `11/11`
-- 当前默认 `RETRIEVAL_TOP_K = 7`
-- 尚未严格定义“上下文命中率”
-- 尚不能写“提升约 20%”
-
-Codex 下一步应指导：
-
-1. 先定义指标，例如 source hit rate、all-source hit rate 或 answer pass rate。
-2. 固定 baseline、case set、配置。
-3. 明确计算公式。
-4. 如果样本只有 11 个，要在报告中说明样本量限制。
-5. 不要把 10/11 到 11/11 强行写成 20%。
-
-验收证据：
-
-- `rag/experiments/retrieval_chunk_experiment.md`
-- `rag/experiments/retrieval_eval_cases.json`
-- 新增或更新的评估报告
-
-安全简历说法：
-
-```text
-对比 chunk size 和 Top-K 配置，并基于离线评估结果选择当前检索基线。
-```
-
-只有数据支持后才能写：
-
-```text
-上下文命中率提升约 20%。
-```
-
-### 1.7 Chunk 策略边界
-
-当前状态：
-
-- Markdown 使用 Markdown header splitting + RecursiveCharacterTextSplitter
-- PDF 使用 RecursiveCharacterTextSplitter
-- 有 chunk size 参数实验
-- 未发现独立 Semantic chunker
-- 未发现完整 Fixed-size / Semantic / Recursive 三策略对比实现
-
-Codex 下一步应指导：
-
-1. 不要直接写“三种 Chunk 策略”。
-2. 如果要补简历强表述，优先新增可测试的 chunking strategy 抽象和最小实验。
-3. 如果不补代码，就把简历降级为“对 chunk size 和 Top-K 做实验”。
-
-安全简历说法：
-
-```text
-基于 Markdown 标题结构和 RecursiveCharacterTextSplitter 构建切分流程，并对 chunk size 与 Top-K 参数进行离线评估。
-```
+**最值得补的 3 件（深度优先）**：
+1. 把 Agent 做成真的（任务 1.1）——补最薄一环，复用现有 schema，性价比最高。
+2. 把 RAG 服务做「生产像」（任务 0.2 + 0.3）——最便宜的可信度提升。
+3. 做一次可量化的检索优化（任务 1.2）——把「召回质量」从口号变数字。
 
 ---
 
-## 8. 阶段 2：Agent 编排目标补齐
-
-### 目标
-
-让 `agent` 子项目逐步接近最终简历第二段：
-
-```text
-问题分析 -> 工具规划 -> 工具注册 -> 工具执行 -> 状态管理 -> trace -> 失败处理 -> 可扩展工具链
-```
-
-当前不要把它包装成 AutoGen、多 Agent 或复杂自主规划系统。
-
-### 2.1 固定当前 Agent 基线
-
-当前状态：
-
-- 已有 `retrieval_tool`
-- 已有 `summary_tool`
-- 已有 `fallback_tool`
-- 已有工具注册表
-- 已有规则式 planner
-- 已有 executor
-- 已有 `AgentState`
-- 已有 `/agent/run`
-- 已有结构化 trace
-- 已有 `question_decompose_tool`，用于比较类和多子问题的规则式拆解
-- 拆解后的子问题会逐个调用 RAG 检索工具，并聚合 `answer`、`sources`、`sub_results`
-- Agent 层负责工具编排、状态记录和结果聚合；检索 retry 由 RAG 服务层处理
-- 当前测试基线：`38 passed`
-
-Codex 下一步应指导用户确认：
-
-1. Agent 测试通过。
-2. `/agent/run` 空问题走 fallback。
-3. 普通知识问题走 retrieval。
-4. 总结类问题走 summary。
-5. retrieval 工具失败时返回 failed 和 attempts；RAG 检索失败重试由 RAG trace 记录。
-
-验收证据：
-
-- `agent/tests/`
-- `agent/README.md`
-- `/agent/run` 示例响应
-
-安全简历说法：
-
-```text
-在 RAG 系统之上实现轻量 Agent 编排层，支持问题分析、工具选择、工具执行和结构化 trace 返回。
-```
-
-### 2.2 工具注册层
-
-当前状态：
-
-- `ToolDefinition` 当前包含 `name`、`description`、`input_schema` 和 `output_schema`
-- 工具注册表位于 `agent/src/agent_app/tools/registry.py`
-- 已为 `retrieval_tool`、`summary_tool`、`question_decompose_tool` 和 `fallback_tool` 定义输入输出契约
-- 已新增 `GET /agent/tools` 能力发现接口
-- 暂未接入真实 LLM Function Calling
-
-Codex 下一步应指导：
-
-1. 先保持工具定义简单，不新增复杂插件系统。
-2. 不要把当前 schema 包装成真实 Function Calling。
-3. `GET /agent/tools` 只做工具能力发现，不执行工具、不调用 RAG。
-4. 若后续接入 LLM planner，再复用当前 `input_schema` 作为 tool/function parameters 基础。
-
-验收证据：
-
-- `agent/src/agent_app/tools/registry.py`
-- `agent/src/agent_app/app/routers/tools.py`
-- `agent/tests/test_tools.py`
-- `agent/tests/api/test_tools_api.py`
-- 未知工具错误测试
-
-安全简历说法：
-
-```text
-将工具注册和执行逻辑拆分，并为检索、摘要、问题拆解等工具定义输入输出契约，降低新增工具的接入成本。
-```
-
-当前还可写：
-
-```text
-封装 Agent 工具能力发现接口，返回已注册工具的 name、description、input_schema 和 output_schema，便于调试和前端能力展示。
-```
-
-### 2.3 新增真实工具
-
-当前状态：
-
-- `retrieval_tool` 已存在
-- `summary_tool` 已存在，但只是本地确定性摘要
-- `fallback_tool` 已存在
-- 网络搜索工具未实现
-- 已实现 `question_decompose_tool`，用于规则式拆解比较类和多子问题输入
-
-推荐新增顺序：
-
-1. 更真实的 `summary_tool`，例如对长文本或检索结果做摘要
-2. 维护工具 schema 和工具能力发现接口
-3. 受控的 `web_search_tool`，只有在 API、mock 边界和失败处理明确后再做
-
-Codex 应优先建议本地可控工具，不要一开始接外部搜索。
-
-验收证据：
-
-- 每个工具有单元测试
-- 每个工具有成功输出
-- 每个工具有失败输出
-- `/agent/run` trace 能看到工具名和状态
-
-安全简历说法：
-
-```text
-集成检索、摘要和兜底工具，支持基于问题类型的工具选择与执行。
-```
-
-当前已可升级为：
-
-```text
-集成检索、摘要和问题拆解等工具，支持基于问题类型的工具选择、子问题检索聚合与执行 trace 返回。
-```
-
-只有真实接入后才能写：
-
-```text
-集成网络搜索工具。
-```
-
-### 2.4 Planner 从规则升级到更强策略
-
-当前状态：
-
-- 当前 planner 是规则式
-- 根据 RAG `query_analyzer` 的 `question_type` 选择工具
-- 已通过规则信号选择 `question_decompose_tool`
-- 不调用 LLM planner
-- 不使用 Function Calling
-
-Codex 下一步应指导：
-
-1. 维护当前规则式 planner 边界，不要包装成 LLM 自主规划。
-2. README 和简历只写“规则式问题拆解”和“结构化 trace”。
-3. 当前已有输入输出 schema 基础；只有需要 LLM 自主选择工具时，再考虑 Function Calling。
-4. 不建议为了简历词汇直接引入 AutoGen。
-
-验收证据：
-
-- planner 单元测试覆盖不同 `question_type`
-- trace 中记录 planner reason
-- README 解释 planner 边界
-
-安全简历说法：
-
-```text
-设计问题分析与工具规划模块，根据问题类型选择合适工具并返回可追踪执行过程。
-```
-
-### 2.5 状态管理与 trace
-
-当前状态：
-
-- 已有 `AgentState`
-- 已有 trace
-- API 返回 `answer`、`sources`、`selected_tool`、`tool_status`、`tool_output`、`trace`
-
-Codex 下一步应指导：
-
-1. 保持 state 字段清晰。
-2. trace 每步包含 `step`、`status`、`detail`。
-3. 工具失败也必须进入 trace。
-4. 不要把 trace 写成不可读的大对象。
-
-验收证据：
-
-- `agent/tests/test_service.py`
-- `agent/tests/api/test_run_api.py`
-- README 示例
-
-安全简历说法：
-
-```text
-使用结构化状态对象保存问题分析、工具计划、工具结果和执行轨迹。
-```
-
-### 2.6 失败重试与鲁棒性
-
-当前状态：
-
-- RAG 服务层对向量检索失败进行有限重试：`MAX_RETRIEVAL_RETRY = 1`，即总计 2 次 retrieval attempt
-- RAG generation 是 `MAX_GENERATION_RETRY = 1`，即总计 2 次 generation attempt
-- Agent 层不再对 `retrieval_tool` 做 3 次整体 retry，避免多子问题场景放大下游调用次数
-- FastAPI/Pydantic 提供基础请求校验
-- 当前是结构化 trace，不是完整日志系统
-
-Codex 下一步应指导：
-
-1. 不要笼统说“所有工具都重试 3 次”。
-2. retry 应尽量靠近真实失败点：向量库失败在 RAG 检索层处理，LLM 生成失败在 generation 层处理。
-3. Agent 层只记录工具调用状态、子问题聚合结果和 trace，不做粗粒度整体 retry。
-4. 如果新增外部工具，再按工具风险设计单独 retry policy。
-5. 若要写“结构化日志”，建议新增真正 logging 层；否则写“结构化 trace”。
-
-验收证据：
-
-- `agent/tests/test_executor.py`
-- `rag/tests/services/test_ask_service.py`
-- failed trace 示例
-- README 说明重试边界
-
-安全简历说法：
-
-```text
-在 RAG 服务层对向量检索和回答生成失败进行有限重试，并通过结构化 trace 暴露 retrieval/generation 的状态与耗时。
-```
-
-### 2.7 AutoGen 与 Function Calling 边界
-
-当前状态：
-
-- 未发现 AutoGen
-- 未发现真实 Function Calling
-
-Codex 必须提醒用户：
-
-1. 不要为了简历词汇硬引入 AutoGen。
-2. 如果最终简历必须写 AutoGen，需要真实使用并能解释为什么需要。
-3. 如果最终简历必须写 Function Calling，需要真实工具 schema、模型 tool call、调用链路和测试。
-4. 更推荐当前阶段写“工具注册与结构化工具调用编排”。
-
-安全替代表述：
-
-```text
-基于工具注册表和结构化 trace 实现轻量工具调用编排。
-```
-
-当前还可写：
-
-```text
-为 Agent 工具注册表定义输入输出契约，为后续受控 tool calling 或工具能力发现接口预留边界。
-```
+## §6 优先级路线图（每个任务都可验收）
+
+> 工作量：S≈半天，M≈1–2 天，L≈3–5 天。验收命令默认在对应子项目目录下用 `conda run -n AI_DEV` 执行。
+
+### P0 — 可信度地基（先做）
+
+**任务 0.1 · 端到端 demo 落到 `docs/demo/`（S，需 live stack）**
+- 做什么：起 RAG+Agent 服务，真实 `curl` 跑 upload→ingest→ask→ask/stream→agent/run，把命令与真实响应存成 `docs/demo/end_to_end.md`，写明环境前提。
+- 环境依赖：P-1 全部就绪。
+- 验收命令：`uvicorn rag_app.app.main:app --port 8001` 与 `uvicorn agent_app.app.main:app --port 8000` 起服务后按文档 curl。
+- 完成信号：照 `docs/demo/end_to_end.md` 重跑能复现同形状响应；README 链接到它。（需人工确认响应合理）
+
+**任务 0.2 · 修 async 错配 + 加结构化日志（M，纯代码）**
+- 做什么：阻塞路由改对（路由改 `def` 让 FastAPI 丢线程池，或 `await run_in_threadpool(...)`）；引入 `logging`，在 service 边界与每个外部调用（Qdrant/LLM）打 request-id + 耗时 + 错误。
+- 改哪里：`ask.py`、`documents.py`、`ask_service.py`、`ingest_service.py`、新增 logging 配置。
+- 验收命令：`cd rag && conda run -n AI_DEV pytest tests/ -q`（应仍全绿）。
+- 完成信号：测试全绿 + `grep -rn "logging" rag/src` 非空 + 不再有 `async def` 路由直接调阻塞同步函数。
+- 不做：不重写业务逻辑；不引日志框架（标准库 `logging` 足够）。
+
+**任务 0.3 · 统一流式/非流式检索重试 + 客户端复用（S–M，部分需 live stack）**
+- 做什么：把 `retrieve_documents_with_retry` 用进 `stream_ask_question`；用 FastAPI lifespan/依赖注入缓存 LLM client 与 vector store。
+- 改哪里：`ask_service.py`、`app/main.py`、`llm_client.py`/`vector_store.py`（暴露可缓存入口）。
+- 验收命令：`cd rag && conda run -n AI_DEV pytest tests/ -q`。
+- 完成信号：流式路径检索失败也走 retry/fallback 并入 trace；客户端在进程内单例复用。
+
+### P1 — 能力深度（一次只推一条主线，做透再开下一条）
+
+**任务 1.1 · 真实 Function Calling 的 Agent（L，需 live stack）⚠ 这是 P1 的默认起点**
+- 做什么：复用 `registry.py` 的 `input_schema` 作为 tool/function parameters，接 LLM native tool calling 让模型选工具并填参；规则式 planner 降级为 fallback；trace 记录模型的 tool-call 决策。
+- ⚠ 人工决策点 / 前置确认：先确认 `LLM_MODEL_ID`（Kimi/Moonshot 兼容接口）**支持 tool calling**；若不支持，退而用 JSON-mode 结构化输出让模型选工具——这条要先问用户走哪条。
+- 改哪里：`planner.py`、`executor.py`、`service.py`、新增 function-calling 适配。
+- 验收命令：`cd agent && conda run -n AI_DEV pytest tests/ -q` + 新增 function-calling/fallback 单测。
+- 完成信号：`/agent/run` 的 trace 能看到「模型选了哪个工具、参数是什么」；两条路径都有测试。
+- 不做：不引入 AutoGen；不删规则式 planner（它是 fallback）。
+
+**任务 1.2 · 可量化的检索质量优化（M–L，需 live stack）**
+- 做什么：加一种召回增强（reranking / metadata filter / MMR 选一）；先定义指标（source hit rate / all-source hit rate），固定 baseline 与 case set，量「改进前→改进后」，扩 golden set，写报告并标注样本量。
+- 改哪里：`retriever.py`/新增 rerank 模块、`retrieval_eval_cases.json`、`experiments/` 报告。
+- 验收命令：`cd rag && conda run -n AI_DEV python -m rag_app.scripts.evaluate_retrieval`（前后各跑一次对比）。
+- 完成信号：`experiments/` 有含指标定义、公式、前后对比、样本量的报告。
+- 不做：不把 10/11→11/11 硬写成「20%」。
+
+**任务 1.3 · 用真工具替换 demo 桩（M，需 live stack）**
+- 做什么：`summary_tool` 换成 LLM 摘要（带长度/失败处理）；加**受控** `web_search_tool`（明确 API 边界、超时、失败处理、mock 测试）。
+- 验收命令：`cd agent && conda run -n AI_DEV pytest tests/ -q` + 每工具的成功/失败单测。
+- 完成信号：trace 能看到工具名与状态；失败路径有测试覆盖。
+- 不做：没有失败处理和测试，不接外部 API。
+
+### P2 — 规模与收尾
+
+**任务 2.1 · 扩评测样本并留运行记录（M，需 live stack）**
+- 做什么：真实扩 golden set / prompt 对比组，保存每次 judge run，统计组数/样本数/耗时。
+- 验收命令：`cd rag && conda run -n AI_DEV python -m rag_app.scripts.evaluate_answers_with_judge`。
+- 完成信号：新增 case 有来源说明 + `experiments/judge_runs/` 新记录。
+
+**任务 2.2 · app 加 Dockerfile + pydantic-settings（S–M，纯代码）**
+- 做什么：为 RAG/Agent 各加 Dockerfile；配置集中到 `pydantic-settings`（替代散落 `os.getenv` + 重复 `load_dotenv`）。
+- 验收命令：`docker build` 两个服务镜像 + `pytest tests/ -q` 仍绿。
+- 完成信号：`docker build` 可成功；配置从单一 Settings 对象读取。
 
 ---
 
-## 9. 阶段 3：Prompt 评测平台目标补齐
+## §7 反模式与红线（明确不要做）
 
-### 目标
-
-让 Prompt 评测从当前离线 eval 和只读报告 API，逐步升级到能支撑最终简历第三段的能力：
-
-```text
-多版本 Prompt -> 固定测试样本 -> LLM-as-Judge -> Pydantic 评分 schema -> A/B 对比 -> 历史结果追溯 -> 可配置 API 演示
-```
-
-### 3.1 固定当前 eval 基线
-
-当前状态：
-
-- 有 retrieval eval
-- 有 answer eval
-- 有 `qa_prompt_v1` 和 `qa_prompt_v2`
-- 有 JSON report
-- 有 LLM-as-Judge report
-- 有 Prompt A/B 对比报告
-- golden set 当前为 11 个 case
-
-Codex 下一步应指导：
-
-1. 确认 eval cases 是否稳定。
-2. 确认 report 中包含 prompt_version。
-3. 确认 failed_cases 是否可读。
-4. 不要口头比较 Prompt，必须保存报告。
-
-安全简历说法：
-
-```text
-设计离线评估流程，对检索命中、回答来源契约和 Prompt 版本进行回归检查，并将结果保存为结构化报告。
-```
-
-### 3.2 Prompt 版本管理
-
-当前状态：
-
-- `qa_prompt_v1` 和 `qa_prompt_v2` 已存在
-- `QA_PROMPT_VERSION` 可通过环境变量切换
-- `run_eval` 会记录 `prompt_version`
-- `qa_prompt_v2` 要求固定结构：
-  - `Direct answer:`
-  - `Key evidence:`
-  - `Limitations:`
-
-Codex 下一步应指导：
-
-1. 明确 v1 和 v2 的差异。
-2. 每次 prompt 改动必须升级版本或记录原因。
-3. eval report 必须保存 prompt_version。
-4. 默认 prompt 的选择要基于报告，不基于主观感觉。
-
-验收证据：
-
-- `rag/src/rag_app/generation/qa_prompt.py`
-- `rag/tests/generation/test_qa_prompt.py`
-- report 中有 `prompt_version`
-- README 有按版本运行命令
-
-安全简历说法：
-
-```text
-支持多版本 Prompt 配置，并通过统一评估脚本对比不同版本输出。
-```
-
-### 3.3 LLM-as-Judge
-
-当前状态：
-
-- 已支持最小 LLM-as-Judge 闭环：
-  - `ask_question`
-  - `answer/sources`
-  - judge prompt
-  - Pydantic schema
-  - JSON report
-- 已有代表性报告：`rag/experiments/llm_judge_report.md`
-- 已有 judge runs：
-  - `rag/experiments/judge_runs/20260526-162728.json`
-  - `rag/experiments/judge_runs/20260526-211450.json`
-  - `rag/experiments/judge_runs/20260526-212913.json`
-
-Codex 下一步应指导：
-
-1. 不重复新增 judge 基础链路。
-2. 优先提高可复用性和可配置性。
-3. 如果要写平台，下一步是 API 触发运行和配置 case set。
-4. 如果要写 KIMI，必须确认实际环境变量和模型配置。
-
-验收证据：
-
-- `rag/src/rag_app/evaluation/judge_schema.py`
-- `rag/src/rag_app/evaluation/answer_judge.py`
-- `rag/src/rag_app/scripts/evaluate_answers_with_judge.py`
-- `rag/tests/evaluation/test_answer_judge.py`
-- `rag/tests/scripts/test_evaluate_answers_with_judge.py`
-- `rag/experiments/llm_judge_report.md`
-
-安全简历说法：
-
-```text
-实现基于 LLM-as-Judge 的评分链路，使用 Pydantic 定义相关性、完整性、事实支撑性和格式规范性评分结果。
-```
-
-### 3.4 A/B Prompt 对比
-
-当前状态：
-
-- 已有 `qa_prompt_v1` 和 `qa_prompt_v2`
-- 已有 11 case 的 A/B 报告
-- 报告路径：`rag/experiments/prompt_comparison_report.md`
-- 报告记录分项分数、通过数、耗时和默认 Prompt 决策
-- 当前不是 80+ 组，也不是 300+ 样本
-
-Codex 下一步应指导：
-
-1. 将当前报告作为 baseline。
-2. 后续 Prompt 改动必须生成新的 judge report。
-3. 不要口头比较 Prompt。
-4. 若要升级平台，再补 API、case set 配置和历史查询。
-
-验收证据：
-
-- `rag/experiments/prompt_comparison_report.md`
-- 对应 judge run JSON
-- `GET /prompt-evals/comparison/latest`
-
-安全简历说法：
-
-```text
-基于固定 golden questions 对 Prompt 版本进行结构化横向对比，并保存历史评测结果。
-```
-
-### 3.5 Prompt eval API
-
-当前状态：
-
-- 已有 Prompt Eval API：
-  - `GET /prompt-evals/reports`
-  - `GET /prompt-evals/reports/{run_id}`
-  - `GET /prompt-evals/comparison/latest`
-  - `POST /prompt-evals/run`
-- API 可以读取历史 judge report 和 latest comparison
-- `POST /prompt-evals/run` 已完成，支持通过 `prompt_version` 和可选 `case_limit` 同步触发小样本 LLM-as-Judge 评测，并将 report 写入 `experiments/judge_runs/`
-- 尚未支持通过 API 传入任意 Prompt 模板、自定义测试用例或自定义评分维度
-
-Codex 下一步应指导：
-
-1. 不重复新增基础运行接口。
-2. 如果用户要继续强化“平台化”，下一步优先补真实 API demo 证据，或支持自定义 case set。
-3. 第三步再支持自定义评分维度。
-4. 最后才考虑任意 Prompt 模板输入。
-
-不建议一开始开放任意 Prompt 模板，原因是安全性、可复现性和报告对比都会变差。
-
-验收证据：
-
-- API schema
-- API 测试
-- README 示例
-- eval report 落盘
-
-完成最小运行接口后可写：
-
-```text
-封装 Prompt 评测 API，支持查询历史 LLM-as-Judge 报告、Prompt 对比指标，并按 Prompt 版本同步触发小样本评测运行与报告落盘。
-```
-
-只有真实支持后才能写：
-
-```text
-支持传入 Prompt 模板、测试用例与评分维度配置。
-```
-
-### 3.6 80+ 组实验、300+ 样本、耗时指标
-
-当前状态：
-
-- 当前 golden set 为 11 cases
-- 当前 A/B 是 2 个 Prompt 版本
-- 当前不支持 80+ 组或 300+ 样本
-- 当前耗时也不能支撑 2.8s
-- 当前没有人工 30 分钟 baseline 和自动 10 分钟对比证据
-
-Codex 必须要求：
-
-1. 真实生成或收集测试样本。
-2. 明确样本来源。
-3. 保存实验运行记录。
-4. 统计实验数量。
-5. 单独跑耗时 benchmark。
-6. 如果使用外部 LLM，说明网络和模型波动限制。
-
-没有这些证据，不允许写：
-
-- `80+ 组 Prompt 对比实验`
-- `300+ 条测试样本`
-- `单次评测耗时 2.8s`
-- `30 分钟压缩至 10 分钟`
-
-安全替代表述：
-
-```text
-基于固定测试样本对 Prompt 版本进行结构化评估，并保存历史评测结果。
-```
+- **不要为了好看加一堆浅 demo。** 五个半成品不如一个有 function calling + 测试 + trace 的真工具链。深度 > 广度。
+- **不要在 README / docs / demo 里声称代码没有的能力。** 当前**代码中不存在**、未做出来前不写进任何文档：`Semantic chunking`、`三种 Chunk 策略`、`Function Calling`、`AutoGen`、`网络搜索工具`、严格定义的`命中率`与`延迟`指标。
+- **不要过度设计 / 过早抽象。** 不为「平台感」做复杂前端；不为单一用途造插件系统；config 用 `pydantic-settings` 即可，别上配置中心。
+- **不要把临时写法伪装成架构。** `summary_tool` 截断、`question_decompose` 单模式切分——要么做真，要么命名和文档如实降级。
+- **不要引入用不上的中间件。** 没有真实并发/持久化需求前，不上 Redis、消息队列、关系库。先把 Qdrant 用好。
+- **不要在错误方向上做局部优化。** 每加一个功能先问：它补齐哪项岗位能力？留下什么可验证证据？有没有更小的做法？
 
 ---
 
-## 10. 阶段 4：最终简历表述升级规则
+## §8 维持竞争力的循环（跨过门槛后，让项目不退化）
 
-Codex 每次完成一个阶段后，都应帮助用户更新“可写 / 不可写”边界。
+竞争力会随时间和岗位要求衰减。**触发时机**：每完成一个 P 阶段、每次准备投递前、或每月一次，跑一遍这个循环：
 
-### 当前较安全版本
-
-RAG：
-
-```text
-基于 FastAPI、LangChain 和 Qdrant 实现 RAG 问答后端，支持 Markdown/PDF 文档上传、单文件入库、语义检索、流式返回和来源引用，并通过离线评估脚本验证检索与回答质量。
-```
-
-Agent：
-
-```text
-在 RAG 系统之上实现轻量 Agent 编排层，支持问题分析、检索/摘要/问题拆解/兜底工具选择、工具输入输出契约、子问题检索聚合、工具执行、状态管理和结构化 trace 返回。
-```
-
-Prompt eval：
-
-```text
-设计 Prompt 版本化评估流程，基于固定 golden questions 和 LLM-as-Judge 结构化评分，对不同 Prompt 版本的回答质量、groundedness 和耗时进行对比，并保存 JSON 评估报告。
-```
-
-### 当前可略强但仍真实的版本
-
-RAG：
-
-```text
-验证 100 页级 PDF 的解析、切分、向量化入库和检索命中流程，并通过实验报告记录 documents/chunks/stored 等处理结果。
-```
-
-Prompt eval：
-
-```text
-封装 Prompt 评测 API，支持查看历史评测报告、最新 Prompt A/B 对比摘要，并按 prompt_version 触发小样本 Judge 评测运行。
-```
-
-### 仍需补证据后才能写的强版本
-
-- 100+ 页多样本稳定处理
-- 平均响应时延 2s 内
-- 上下文命中率提升约 20%
-- Semantic chunking 策略对比
-- Function Calling
-- AutoGen
-- 网络搜索工具
-- LLM-based 任务拆解工具
-- 复杂用户意图自动规划
-- 可传入 Prompt 模板、测试用例和评分维度的评测 API
-- 80+ Prompt 对比实验
-- 300+ 测试样本
-- 单次评测 2.8s
-- 人工 30 分钟压缩到自动 10 分钟
-
-### 技术栈措辞规则
-
-如果简历继续写 `ChromaDB / FAISS`，Codex 必须提醒：
-
-- 当前代码主线是 Qdrant
-- 写 Qdrant 最真实
-- 若要写 ChromaDB / FAISS，必须真实补实现和测试
-
-如果简历继续写 `AutoGen`，Codex 必须提醒：
-
-- 当前 `agent` 是自建轻量编排层
-- 写 AutoGen 不安全
-- 更安全表述是“轻量 Agent 编排层”或“工具注册与执行框架”
-
-如果简历继续写 `Function Calling`，Codex 必须提醒：
-
-- 当前没有模型 tool call
-- 当前只是本地规则式工具选择和工具执行
-- 更安全表述是“工具注册表”和“结构化工具执行”
+1. **证据保鲜**：重跑测试 + `run_eval` + `benchmark_latency` + demo，确认 §4 A 档能力没回归，报告是最新的。简历投递引用的任何数字，都以最近一次实跑为准。
+2. **重估现状**：重读 §4，把已修问题降档；把新出现的原型级问题补进 §2 看板。
+3. **跟住岗位**：看几份当前 AI 应用 / LLM 实习 JD 在要什么（新框架、新评测标准、新 agent 范式），把新增 gap 写进 §5。
+4. **继续深挖一条线**：roadmap 做完后，挑已选主线的对立面（做了 1.1 就做 1.2），或选一个**全新垂直能力**做透——而不是回头铺浅功能。
+5. **守住原则**：维持竞争力 = 证据保鲜 + 持续深挖 + 跟住岗位，**不是**无限堆功能。每轮只深化一处。
 
 ---
 
-## 11. Codex 的默认下一步推荐
+## 附：本次实际读取的关键文件（供核对）
 
-如果用户问“下一步做什么”，Codex 应默认推荐下面顺序。
+依赖与工程化：`rag/pyproject.toml`、`rag/requirements.in`、`agent/pyproject.toml`、`.github/workflows/tests.yml`、`rag/compose.yaml`、`git log --oneline -30`、`rag/.env.example`（存在性确认）。
 
-| 优先级 | 任务 | 原因 | 验收 |
-|---|---|---|---|
-| P0 | 固定当前测试和 eval 基线 | 没有证据就无法安全写简历 | RAG 87 passed、Agent 38 passed、eval report |
-| P1 | 更新 RAG README 中的演示链路 | 面试时最容易展示 | upload -> ingest -> ask -> stream |
-| P1 | 把 100 页 PDF 报告补成可复现版本 | 支撑 RAG 第一段强表述 | 页数、chunks、stored、耗时 |
-| P1 | 延迟优化前先保留 benchmark 结论 | 防止写错 2s 指标 | latency report |
-| P2 | 已完成 `question_decompose_tool`，后续维护演示证据 | 直接支撑 Agent 第二段 | tool tests、planner tests、API trace、sub_results |
-| P2 | 已完成工具 schema 和能力发现接口，后续维护工具契约 | 为 Function Calling 做准备但不提前承诺 | registry tests、tools API tests |
-| P2 | 已完成 `POST /prompt-evals/run`，后续维护演示证据 | 支撑 Prompt 平台化 | API tests、report 落盘、README curl |
-| P3 | 扩展 Prompt case set | 支撑更强样本规模 | case 来源、运行报告 |
-| P3 | 再考虑 Function Calling 或 LangGraph | 只有工具链复杂后才有必要 | 设计说明、测试、README |
+RAG 源码：`config/config.py`、`app/routers/{ask,documents,prompt_eval}.py`、`services/{ask_service,prompt_eval_service}.py`、`retrieval/{query_analyzer,retriever}.py`、`infrastructure/{vector_store,llm_client}.py`、`ingestion/chunkers/{markdown_chunker,pdf_chunker}.py`、`evaluation/{answer_judge,judge_schema}.py`。
 
-默认最小下一步建议：
+Agent 源码：`service.py`、`orchestration/{planner,executor}.py`、`tools/{registry,retrieval,summary,question_decompose}.py`。
 
-```text
-`question_decompose_tool`、Agent 工具 schema 与能力发现接口、RAG 检索层 retry 和 `POST /prompt-evals/run` 已完成。下一步优先补真实 API demo 证据和简历 bullet；若继续写功能，再考虑 Prompt eval 自定义 case set。
-```
+结构与测试：`rag/src`、`rag/tests`、`agent/src`、`agent/tests` 目录树；测试函数计数 rag 91 / agent 38；logging grep（结果为 0）。
 
-选择规则：
-
-- 如果用户想强化第二段 Agent：先同步 README/简历表述，再考虑是否需要真实 Function Calling 设计，但不要直接开做
-- 如果用户想强化第三段 Prompt 平台：先补 `POST /prompt-evals/run` 的 README/demo 证据，再考虑自定义 case set
-- 如果用户想强化第一段 RAG：先更新大 PDF 和 latency 证据，不要再新增接口
-
----
-
-## 12. 反过度设计规则
-
-Codex 不应主动建议：
-
-- 上来就换框架
-- 为了 AutoGen 而 AutoGen
-- 为了 FAISS 而重写向量层
-- 为了平台感做复杂前端
-- 没有数据就写提升百分比
-- 没有 benchmark 就写延迟
-- 明知 benchmark 不达标还写 2s
-- 没有真实工具就写多工具 Agent
-- 没有样本就写 300+ 测试
-- 没有 API 触发运行就写完整 Prompt 平台
-
-如果用户提出这些方向，Codex 应先问：
-
-```text
-这一步能直接支撑哪句简历？需要留下什么证据？有没有更小的实现方式？
-```
-
----
-
-## 13. 验收命令参考
-
-RAG 测试：
-
-```bash
-cd rag
-conda run -n AI_DEV pytest tests/ -q
-```
-
-RAG 评估：
-
-```bash
-cd rag
-conda run -n AI_DEV python -m rag_app.scripts.run_eval
-```
-
-RAG Judge 评估：
-
-```bash
-cd rag
-conda run --no-capture-output -n AI_DEV python -m rag_app.scripts.evaluate_answers_with_judge
-```
-
-RAG latency benchmark：
-
-```bash
-cd rag
-conda run -n AI_DEV python -m rag_app.scripts.benchmark_latency
-```
-
-Agent 测试：
-
-```bash
-cd agent
-conda run -n AI_DEV pytest tests/ -q
-```
-
-Agent CLI：
-
-```bash
-cd agent
-conda run -n AI_DEV python -m agent_app.scripts.run_agent ""
-```
-
-RAG API 演示：
-
-```bash
-cd rag
-conda run -n AI_DEV uvicorn rag_app.app.main:app --host 127.0.0.1 --port 8001 --reload
-```
-
-Agent API 演示：
-
-```bash
-cd agent
-conda run -n AI_DEV uvicorn agent_app.app.main:app --host 127.0.0.1 --port 8000 --reload
-```
-
-每次完成任务后，Codex 应明确说明：
-
-- 改了哪些文件
-- 跑了什么命令
-- 是否通过
-- 生成了什么证据
-- 简历哪句话更安全
-- 哪句话仍然不能写
-
----
-
-## 14. 最终原则
-
-这个仓库不是为了堆概念，而是为了让用户在实习面试中能诚实讲清楚：
-
-1. 系统怎么设计
-2. 数据怎么流动
-3. 为什么这样拆模块
-4. 怎么验证效果
-5. 指标从哪里来
-6. 哪些能力是真做了
-7. 哪些能力还只是下一阶段
-
-当“简历更强”和“证据更真实”冲突时，Codex 必须优先选择证据真实。
+仅引用既有报告、未直接打开（需实跑复核）：`experiments/latency_benchmark.md`（~24.43s，瓶颈在生成）、`experiments/large_pdf_ingestion_report.md`（gpt4 report，100 页，452 chunks）、`experiments/judge_runs/*.json`（3 个）、`retrieval_eval_cases.json`（11 cases）。

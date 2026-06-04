@@ -30,6 +30,9 @@
 
 ## 当前运行方式
 
+端到端演示记录见 [`docs/demo/end_to_end.md`](docs/demo/end_to_end.md)，包含
+upload、ingest、ask、stream ask 和 agent run 的真实 `curl` 命令与响应摘录。
+
 进入 RAG 子项目：
 
 ```bash

@@ -455,25 +455,9 @@ def stream_ask_question(question: str) -> Iterator[dict[str, Any]]:
         yield {"type": "done"}
         return
 
-    retriever = get_retriever(top_k=retrieval_plan.top_k)
-    documents = retriever.invoke(retrieval_plan.retrieval_query)
-
-    documents = apply_retrieval_strategy(
-        documents=documents,
-        retrieval_strategy=retrieval_plan.retrieval_strategy,
-    )
-
-    trace.append(
-        build_trace_item(
-            step="retrieval",
-            detail={
-                "retrieval_strategy": retrieval_plan.retrieval_strategy,
-                "retrieval_query": retrieval_plan.retrieval_query,
-                "top_k": retrieval_plan.top_k,
-                "document_count": len(documents),
-                "retrieved_sources": build_retrieved_sources(documents),
-            },
-        )
+    documents = retrieve_documents_with_retry(
+        retrieval_plan=retrieval_plan,
+        trace=trace,
     )
 
     if not documents:

@@ -489,6 +489,7 @@ def test_stream_ask_question_streams_answer_chunks(monkeypatch) -> None:
                         "top_k": config.RETRIEVAL_TOP_K,
                         "document_count": 1,
                         "retrieved_sources": ["data/raw/langchain-docs.md"],
+                        "duration_seconds": 0.0,
                     },
                 },
                 {
@@ -509,6 +510,77 @@ def test_stream_ask_question_streams_answer_chunks(monkeypatch) -> None:
         llm="fake-llm",
     )
     mock_retriever.invoke.assert_called_once_with("LangChain 是什么？")
+
+
+def test_stream_ask_question_retries_retrieval_once(monkeypatch) -> None:
+    documents = [
+        Document(
+            page_content="LangChain is a framework for developing applications.",
+            metadata={
+                "source": "data/raw/langchain-docs.md",
+                "section_path": "Introduction > Overview",
+            },
+        )
+    ]
+
+    mock_retriever = Mock()
+    mock_retriever.invoke.side_effect = [
+        RuntimeError("temporary qdrant failure"),
+        documents,
+    ]
+    mock_stream_answer = Mock(return_value=iter(["LangChain 是一个框架。"]))
+
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_retriever",
+        lambda top_k=None: mock_retriever,
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.format_context",
+        lambda docs: "formatted context",
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_client",
+        lambda: "fake-llm",
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_qa_prompt",
+        lambda: "fake-prompt",
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.stream_answer",
+        mock_stream_answer,
+    )
+
+    events = list(stream_ask_question("LangChain 是什么？"))
+
+    assert events[0] == {
+        "type": "answer_delta",
+        "content": "LangChain 是一个框架。",
+    }
+    assert mock_retriever.invoke.call_count == 2
+
+    trace_event = next(event for event in events if event["type"] == "trace")
+    retry_trace = trace_event["trace"][2]
+    completed_trace = trace_event["trace"][3]
+
+    assert retry_trace["step"] == "retrieval"
+    assert retry_trace["status"] == "retrying"
+    assert retry_trace["detail"]["attempt"] == 1
+    assert retry_trace["detail"]["error_type"] == "RuntimeError"
+    assert retry_trace["detail"]["retrieval_query"] == "LangChain 是什么？"
+    assert retry_trace["detail"]["top_k"] == config.RETRIEVAL_TOP_K
+    assert "duration_seconds" in retry_trace["detail"]
+
+    assert completed_trace["step"] == "retrieval"
+    assert completed_trace["status"] == "completed"
+    assert completed_trace["detail"]["attempt"] == 2
+    assert completed_trace["detail"]["document_count"] == 1
+    mock_stream_answer.assert_called_once_with(
+        question="LangChain 是什么？",
+        context="formatted context",
+        prompt="fake-prompt",
+        llm="fake-llm",
+    )
 
 
 def test_ask_question_skips_retrieval_when_question_is_empty(monkeypatch) -> None:

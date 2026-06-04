@@ -68,7 +68,7 @@ AI 应用开发 / LLM Engineering 实习通常考察：
 | # | 任务 | 档位 | 需 live stack | 状态 | 完成日期 |
 |---|---|---|---|---|---|
 | 0.1 | 端到端 demo 落到 `docs/demo/` | 地基 | 是 | [x] | 2026-06-04 |
-| 0.2 | 修 async 错配 + 加结构化日志 | 地基 | 否 | [ ] | |
+| 0.2 | 修 async 错配 + 加结构化日志 | 地基 | 否 | [x] | 2026-06-04 |
 | 0.3 | 统一流式/非流式检索重试 + 客户端复用 | 地基 | 部分 | [ ] | |
 | 1.1 | 真实 Function Calling 的 Agent ⚠默认先做 | 深度 | 是 | [ ] | |
 | 1.2 | 可量化的检索质量优化 | 深度 | 是 | [ ] | |
@@ -103,9 +103,9 @@ AI 应用开发 / LLM Engineering 实习通常考察：
 
 ### B 档：原型级（能跑，缺边界 / 可观测 / 一致性）
 
-- **async/sync 错配（生产隐患）**：`/ask`、`/ingest` 是 `async def` 却调阻塞同步 I/O（`ask.py:24-27`、`documents.py:86-92`），高并发阻塞事件循环。（→任务 0.2）
+- ~~**async/sync 错配（生产隐患）**：`/ask`、`/ingest` 是 `async def` 却调阻塞同步 I/O（`ask.py:24-27`、`documents.py:86-92`），高并发阻塞事件循环。（→任务 0.2）~~ 已于 2026-06-04 修复：阻塞路由改为同步 handler，并用测试固定。
 - **流式与非流式不一致**：`stream_ask_question` 直接 `retriever.invoke()`，**无**重试（`ask_service.py:398-399` vs `128-197`）。（→任务 0.3）
-- **零日志**：全仓库 grep 不到 `logging`，只有 in-band trace。（→任务 0.2）
+- ~~**零日志**：全仓库 grep 不到 `logging`，只有 in-band trace。（→任务 0.2）~~ 已于 2026-06-04 修复：RAG app 配置标准库 `logging`，ask/ingest 服务记录耗时与错误；request-id 可作为后续可观测性增强。
 - **客户端无复用**：`get_client`/`get_vector_store`/`get_retriever` 每请求重建（`llm_client.py:9-29`、`vector_store.py:15-27`、`retriever.py:5-14`）。（→任务 0.3）
 - **配置半集中**：`CHUNK_SIZE/CHUNK_OVERLAP` 硬编码 `config.py:11-12`；`load_dotenv` 三处重复；`vector_store.py:16` 直接 `os.getenv` 绕过 config。（→任务 2.2）
 - **无 lint/type 检查**：有类型标注但无 mypy/ruff，dev 依赖只有 pytest。
@@ -120,8 +120,8 @@ AI 应用开发 / LLM Engineering 实习通常考察：
 - **评测样本极小**：11 golden cases、2 prompt 版本、3 个 judge run。（→任务 2.1）
 
 ### 最严重的工程问题（按对生产质量影响排序）
-1. async 路由跑阻塞 I/O（并发正确性）→任务 0.2
-2. 完全没有日志/可观测性（不可运维）→任务 0.2
+1. ~~async 路由跑阻塞 I/O（并发正确性）→任务 0.2~~ 已修复，2026-06-04
+2. ~~完全没有日志/可观测性（不可运维）→任务 0.2~~ 基础 logging 已补，2026-06-04
 3. 流式与非流式健壮性不一致→任务 0.3
 4. 核心 Agent 逻辑是字符串规则（岗位短板）→任务 1.1
 5. 客户端每请求重建 + 配置分散→任务 0.3 / 2.2

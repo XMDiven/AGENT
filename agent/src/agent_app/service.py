@@ -23,12 +23,18 @@ def run_agent(question: str) -> AgentRunResult:
         question=question,
     )
 
-    tool_result = execute_plan(
-        plan=plan,
-        tool_input={
+    tool_input = (
+        plan.tool_args
+        if plan.tool_args is not None
+        else {
             "question": question,
             "text": question,
-        },
+        }
+    )
+
+    tool_result = execute_plan(
+        plan=plan,
+        tool_input=tool_input,
     )
 
     execute_detail: dict[str, Any] = {

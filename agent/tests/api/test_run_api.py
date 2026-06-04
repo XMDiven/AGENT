@@ -1,8 +1,28 @@
+from typing import Any
+
 from fastapi.testclient import TestClient
 
 from agent_app.app.main import app
+from agent_app.orchestration.tool_selector import ToolSelection
+from agent_app.tools import get_tool
 
 client = TestClient(app)
+
+
+def patch_tool_selection(
+    monkeypatch,
+    tool_name: str,
+    tool_args: dict[str, Any],
+    reason: str = "llm selected tool via native tool calling",
+) -> None:
+    monkeypatch.setattr(
+        "agent_app.orchestration.planner.select_tool_with_llm",
+        lambda question: ToolSelection(
+            tool=get_tool(tool_name),
+            tool_args=tool_args,
+            reason=reason,
+        ),
+    )
 
 
 def test_run_agent_endpoint_uses_fallback_tool_for_empty_question() -> None:
@@ -64,6 +84,12 @@ def test_run_agent_endpoint_uses_fallback_tool_for_empty_question() -> None:
 def test_run_agent_endpoint_returns_success_when_retrieval_succeeds(
     monkeypatch,
 ) -> None:
+    patch_tool_selection(
+        monkeypatch=monkeypatch,
+        tool_name="retrieval_tool",
+        tool_args={"question": "What is RAG?"},
+    )
+
     expected = {
         "answer": "RAG answer",
         "sources": [],
@@ -108,7 +134,15 @@ def test_run_agent_endpoint_returns_success_when_retrieval_succeeds(
     }
 
 
-def test_run_agent_endpoint_uses_summary_tool_for_summary_question() -> None:
+def test_run_agent_endpoint_uses_summary_tool_for_summary_question(
+    monkeypatch,
+) -> None:
+    patch_tool_selection(
+        monkeypatch=monkeypatch,
+        tool_name="summary_tool",
+        tool_args={"text": "请总结 LangChain 的用途"},
+    )
+
     response = client.post(
         "/agent/run",
         json={
@@ -147,6 +181,12 @@ def test_run_agent_endpoint_uses_summary_tool_for_summary_question() -> None:
 def test_run_agent_endpoint_uses_question_decompose_tool_for_comparison_question(
     monkeypatch,
 ) -> None:
+    patch_tool_selection(
+        monkeypatch=monkeypatch,
+        tool_name="question_decompose_tool",
+        tool_args={"question": "LangChain 和 LlamaIndex 分别适合做什么？"},
+    )
+
     def fake_retrieval_tool(question: str) -> dict:
         return {
             "answer": f"{question} answer",
@@ -242,6 +282,12 @@ def test_run_agent_endpoint_uses_question_decompose_tool_for_comparison_question
 def test_run_agent_endpoint_returns_failed_tool_result_when_retrieval_fails(
     monkeypatch,
 ) -> None:
+    patch_tool_selection(
+        monkeypatch=monkeypatch,
+        tool_name="retrieval_tool",
+        tool_args={"question": "What is RAG?"},
+    )
+
     def raise_error(question: str) -> None:
         raise RuntimeError("rag unavailable")
 

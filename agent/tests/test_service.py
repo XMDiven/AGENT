@@ -1,16 +1,48 @@
+from typing import Any
+
+import pytest
+
+from agent_app.orchestration.tool_selector import ToolSelection
 from agent_app.service import run_agent
+from agent_app.tools import get_tool
+
+
+def patch_tool_selection(
+    monkeypatch: pytest.MonkeyPatch,
+    tool_name: str,
+    tool_args: dict[str, Any],
+    reason: str = "llm selected tool via native tool calling",
+) -> None:
+    monkeypatch.setattr(
+        "agent_app.orchestration.planner.select_tool_with_llm",
+        lambda question: ToolSelection(
+            tool=get_tool(tool_name),
+            tool_args=tool_args,
+            reason=reason,
+        ),
+    )
 
 
 def test_run_agent_uses_retrieval_tool(monkeypatch) -> None:
+    patch_tool_selection(
+        monkeypatch=monkeypatch,
+        tool_name="retrieval_tool",
+        tool_args={"question": "rewritten retrieval question"},
+    )
+
     expected = {
         "answer": "RAG answer",
         "sources": [],
         "trace": [],
     }
 
+    def fake_retrieval_tool(question: str) -> dict:
+        assert question == "rewritten retrieval question"
+        return expected
+
     monkeypatch.setattr(
         "agent_app.orchestration.executor.run_retrieval_tool",
-        lambda question: expected,
+        fake_retrieval_tool,
     )
 
     result = run_agent("What is RAG?")
@@ -41,7 +73,7 @@ def test_run_agent_uses_retrieval_tool(monkeypatch) -> None:
             "status": "completed",
             "detail": {
                 "tool_name": "retrieval_tool",
-                "reason": "question requires knowledge retrieval",
+                "reason": "llm selected tool via native tool calling",
             },
         },
         {
@@ -110,7 +142,13 @@ def test_run_agent_uses_fallback_tool_when_retrieval_is_not_needed() -> None:
     ]
 
 
-def test_run_agent_uses_summary_tool_for_summary_question() -> None:
+def test_run_agent_uses_summary_tool_for_summary_question(monkeypatch) -> None:
+    patch_tool_selection(
+        monkeypatch=monkeypatch,
+        tool_name="summary_tool",
+        tool_args={"text": "请总结 LangChain 的用途"},
+    )
+
     result = run_agent("请总结 LangChain 的用途")
 
     assert result.plan.tool.name == "summary_tool"
@@ -140,7 +178,7 @@ def test_run_agent_uses_summary_tool_for_summary_question() -> None:
             "status": "completed",
             "detail": {
                 "tool_name": "summary_tool",
-                "reason": "question asks for summarization",
+                "reason": "llm selected tool via native tool calling",
             },
         },
         {
@@ -162,6 +200,12 @@ def test_run_agent_uses_summary_tool_for_summary_question() -> None:
 def test_run_agent_uses_question_decompose_tool_for_comparison_question(
     monkeypatch,
 ) -> None:
+    patch_tool_selection(
+        monkeypatch=monkeypatch,
+        tool_name="question_decompose_tool",
+        tool_args={"question": "LangChain 和 LlamaIndex 分别适合做什么？"},
+    )
+
     def fake_retrieval_tool(question: str) -> dict:
         return {
             "answer": f"{question} answer",
@@ -240,6 +284,12 @@ def test_run_agent_uses_question_decompose_tool_for_comparison_question(
 def test_run_agent_marks_trace_failed_when_retrieval_tool_fails(
     monkeypatch,
 ) -> None:
+    patch_tool_selection(
+        monkeypatch=monkeypatch,
+        tool_name="retrieval_tool",
+        tool_args={"question": "What is RAG?"},
+    )
+
     def raise_error(question: str) -> None:
         raise RuntimeError("rag unavailable")
 

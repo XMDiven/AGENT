@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 
 from rag_app.config import config
 from rag_app.schemas.document_schema import (
@@ -85,8 +85,12 @@ async def upload_documents(
 
 @router.post("/ingest")
 def ingest_document(
-    request: DocumentIngestRequest,
+    body: DocumentIngestRequest,
+    request: Request,
 ) -> DocumentIngestResponse:
-    document_path = resolve_uploaded_document_path(request.filename)
-    result = ingest_file(str(document_path))
+    document_path = resolve_uploaded_document_path(body.filename)
+    result = ingest_file(
+        path=str(document_path),
+        resources=request.app.state.resources,
+    )
     return DocumentIngestResponse(**result)

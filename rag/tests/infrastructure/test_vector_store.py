@@ -52,6 +52,38 @@ def test_ingest_chunks_uses_stable_document_ids(monkeypatch : pytest.MonkeyPatch
         ids=[expected_ids],
     )
 
+
+def test_ingest_chunks_uses_provided_vector_store(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    document = Document(
+        page_content="Qdrant is a vector database.",
+        metadata={"source": "data/raw/qdrant-docs.md"},
+    )
+    mock_vector_store = Mock()
+    mock_get_vector_store = Mock(
+        side_effect=AssertionError("get_vector_store should not be called")
+    )
+
+    monkeypatch.setattr(
+        vector_store,
+        "get_vector_store",
+        mock_get_vector_store,
+    )
+
+    ids = ingest_chunks(
+        [document],
+        vector_store=mock_vector_store,
+    )
+
+    expected_id = build_chunk_id(document)
+    assert ids == [expected_id]
+    mock_get_vector_store.assert_not_called()
+    mock_vector_store.add_documents.assert_called_once_with(
+        documents=[document],
+        ids=[expected_id],
+    )
+
 def test_ingest_chunks_deduplicates_chunks_with_same_stable_id(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -78,7 +110,6 @@ def test_ingest_chunks_deduplicates_chunks_with_same_stable_id(
         documents=[first_document],
         ids=[expected_ids],
     )
-
 
 
 

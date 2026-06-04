@@ -2,6 +2,7 @@ import inspect
 
 from rag_app.app.routers import documents as documents_router
 from rag_app.config import config
+from rag_app.infrastructure.resources import AppResources
 
 
 def test_ingest_route_handler_is_sync() -> None:
@@ -159,6 +160,7 @@ def test_ingest_uploaded_markdown_document(
     client,
     tmp_path,
     monkeypatch,
+    app_resources: AppResources,
 ) -> None:
     monkeypatch.setattr(config, "RAW_DATA_DIR", tmp_path)
     saved_file = tmp_path / "example.md"
@@ -171,8 +173,12 @@ def test_ingest_uploaded_markdown_document(
         "stored_count": 2,
     }
 
-    def fake_ingest_file(path: str) -> dict[str, str | int]:
+    def fake_ingest_file(
+        path: str,
+        resources: AppResources | None = None,
+    ) -> dict[str, str | int]:
         assert path == str(saved_file)
+        assert resources is app_resources
         return expected_result
 
     monkeypatch.setattr(

@@ -4,6 +4,7 @@ from unittest.mock import Mock
 import pytest
 from langchain_core.documents import Document
 
+from rag_app.infrastructure.resources import AppResources
 from rag_app.services import ingest_service
 from rag_app.services.ingest_service import ingest_markdown_file
 
@@ -62,6 +63,56 @@ def test_ingest_markdown_file_returns_counts(
     mock_load_markdown.assert_called_once_with("data/raw/langchain-docs.md")
     mock_chunk_markdown.assert_called_once_with(documents)
     mock_ingest_chunks.assert_called_once_with(chunks)
+
+
+def test_ingest_markdown_file_uses_resources_vector_store(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    documents = [
+        Document(
+            page_content="# LangChain\nLangChain is a framework.",
+            metadata={"source": "data/raw/langchain-docs.md"},
+        )
+    ]
+    chunks = [
+        Document(
+            page_content="LangChain is a framework.",
+            metadata={
+                "source": "data/raw/langchain-docs.md",
+                "section_path": "LangChain",
+            },
+        )
+    ]
+    mock_vector_store = Mock()
+    resources = AppResources(
+        llm_client=Mock(),
+        vector_store=mock_vector_store,
+    )
+    mock_ingest_chunks = Mock(return_value=["chunk-1"])
+
+    monkeypatch.setattr(
+        "rag_app.services.ingest_service.load_markdown",
+        Mock(return_value=documents),
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ingest_service.chunk_markdown",
+        Mock(return_value=chunks),
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ingest_service.ingest_chunks",
+        mock_ingest_chunks,
+    )
+
+    result = ingest_markdown_file(
+        "data/raw/langchain-docs.md",
+        resources=resources,
+    )
+
+    assert result["stored_count"] == 1
+    mock_ingest_chunks.assert_called_once_with(
+        chunks=chunks,
+        vector_store=mock_vector_store,
+    )
 
 
 def test_ingest_pdf_file_returns_counts(

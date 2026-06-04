@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 from time import perf_counter
 
+from rag_app.infrastructure.resources import AppResources
 from rag_app.infrastructure.vector_store import ingest_chunks
 from rag_app.ingestion.chunkers.markdown_chunker import chunk_markdown
 from rag_app.ingestion.chunkers.pdf_chunker import chunk_pdf
@@ -11,19 +12,37 @@ from rag_app.ingestion.loaders.pdf_loader import load_pdf
 logger = logging.getLogger(__name__)
 
 
-def ingest_file(path: str) -> dict[str, str | int]:
+def ingest_file(
+    path: str,
+    resources: AppResources | None = None,
+) -> dict[str, str | int]:
     file_path = Path(path)
 
     if file_path.suffix == ".md":
-        return ingest_markdown_file(path)
+        if resources is None:
+            return ingest_markdown_file(path)
+
+        return ingest_markdown_file(
+            path=path,
+            resources=resources,
+        )
 
     if file_path.suffix == ".pdf":
-        return ingest_pdf_file(path)
+        if resources is None:
+            return ingest_pdf_file(path)
+
+        return ingest_pdf_file(
+            path=path,
+            resources=resources,
+        )
 
     raise ValueError(f"Unsupported file type: {file_path.suffix}")
 
 
-def ingest_markdown_file(path: str) -> dict[str, str | int]:
+def ingest_markdown_file(
+    path: str,
+    resources: AppResources | None = None,
+) -> dict[str, str | int]:
     total_start = perf_counter()
 
     load_start = perf_counter()
@@ -35,7 +54,13 @@ def ingest_markdown_file(path: str) -> dict[str, str | int]:
     chunk_duration = perf_counter() - chunk_start
 
     store_start = perf_counter()
-    ids = ingest_chunks(chunks)
+    if resources is None:
+        ids = ingest_chunks(chunks)
+    else:
+        ids = ingest_chunks(
+            chunks=chunks,
+            vector_store=resources.vector_store,
+        )
     store_duration = perf_counter() - store_start
 
     total_duration = perf_counter() - total_start
@@ -63,7 +88,10 @@ def ingest_markdown_file(path: str) -> dict[str, str | int]:
     }
 
 
-def ingest_pdf_file(path: str) -> dict[str, str | int]:
+def ingest_pdf_file(
+    path: str,
+    resources: AppResources | None = None,
+) -> dict[str, str | int]:
     total_start = perf_counter()
 
     load_start = perf_counter()
@@ -75,7 +103,13 @@ def ingest_pdf_file(path: str) -> dict[str, str | int]:
     chunk_duration = perf_counter() - chunk_start
 
     store_start = perf_counter()
-    ids = ingest_chunks(chunks)
+    if resources is None:
+        ids = ingest_chunks(chunks)
+    else:
+        ids = ingest_chunks(
+            chunks=chunks,
+            vector_store=resources.vector_store,
+        )
     store_duration = perf_counter() - store_start
 
     total_duration = perf_counter() - total_start

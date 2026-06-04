@@ -9,6 +9,7 @@ from langchain_qdrant import QdrantVectorStore
 from rag_app.config import config
 from rag_app.infrastructure.embedding_client import get_embeddings
 
+
 dotenv.load_dotenv()
 
 
@@ -42,11 +43,14 @@ def build_chunk_id(document : Document) -> str:
     )
     return str(uuid.uuid5(uuid.NAMESPACE_DNS, serialized_payload))
 
-def ingest_chunks(chunks: list[Document]) -> list[str]:
+def ingest_chunks(
+    chunks: list[Document],
+    vector_store: QdrantVectorStore | None = None,
+) -> list[str]:
     if not chunks:
         return []
 
-    vector_store = get_vector_store()
+    vector_store = vector_store or get_vector_store()
 
     unique_chunks_by_id: dict[str, Document] = {}
 

@@ -1,4 +1,5 @@
 import json
+import inspect
 from unittest.mock import Mock
 
 import pytest
@@ -9,6 +10,10 @@ from rag_app.app.routers import ask as ask_router
 
 def parse_ndjson(text: str) -> list[dict]:
     return [json.loads(line) for line in text.splitlines() if line]
+
+
+def test_ask_route_handler_is_sync() -> None:
+    assert not inspect.iscoroutinefunction(ask_router.ask)
 
 
 def test_ask_returns_answer_and_sources(

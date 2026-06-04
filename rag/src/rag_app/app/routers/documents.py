@@ -84,7 +84,7 @@ async def upload_documents(
 
 
 @router.post("/ingest")
-async def ingest_document(
+def ingest_document(
     request: DocumentIngestRequest,
 ) -> DocumentIngestResponse:
     document_path = resolve_uploaded_document_path(request.filename)

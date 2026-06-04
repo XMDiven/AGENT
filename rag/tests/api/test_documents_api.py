@@ -1,4 +1,11 @@
+import inspect
+
+from rag_app.app.routers import documents as documents_router
 from rag_app.config import config
+
+
+def test_ingest_route_handler_is_sync() -> None:
+    assert not inspect.iscoroutinefunction(documents_router.ingest_document)
 
 
 def test_upload_markdown_document(client, tmp_path, monkeypatch) -> None:

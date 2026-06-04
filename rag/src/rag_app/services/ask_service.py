@@ -1,3 +1,5 @@
+import logging
+
 from collections.abc import Iterator
 from time import perf_counter
 from typing import Any
@@ -12,6 +14,8 @@ from rag_app.infrastructure.llm_client import get_client
 from rag_app.retrieval.query_analyzer import analyze_query
 from rag_app.retrieval.retriever import get_retriever
 from rag_app.retrieval.retrieval_planner import RetrievalPlan, plan_retrieval
+
+logger = logging.getLogger(__name__)
 
 
 def interleave_documents_by_source(documents: list[Document]) -> list[Document]:
@@ -144,6 +148,27 @@ def retrieve_documents_with_retry(
             last_retrieval_duration_seconds = perf_counter() - retrieval_start
 
             if attempt < max_attempts:
+                logger.warning(
+                    "ask.retrieval retrying strategy=%s top_k=%s attempt=%s "
+                    "duration_seconds=%.2f error_type=%s",
+                    retrieval_plan.retrieval_strategy,
+                    retrieval_plan.top_k,
+                    attempt,
+                    last_retrieval_duration_seconds,
+                    type(exc).__name__,
+                )
+            else:
+                logger.error(
+                    "ask.retrieval failed strategy=%s top_k=%s attempt=%s "
+                    "duration_seconds=%.2f error_type=%s",
+                    retrieval_plan.retrieval_strategy,
+                    retrieval_plan.top_k,
+                    attempt,
+                    last_retrieval_duration_seconds,
+                    type(exc).__name__,
+                )
+
+            if attempt < max_attempts:
                 trace.append(
                     build_trace_item(
                         step="retrieval",
@@ -163,6 +188,16 @@ def retrieve_documents_with_retry(
         documents = apply_retrieval_strategy(
             documents=documents,
             retrieval_strategy=retrieval_plan.retrieval_strategy,
+        )
+
+        logger.info(
+            "ask.retrieval completed strategy=%s top_k=%s attempt=%s "
+            "duration_seconds=%.2f document_count=%s",
+            retrieval_plan.retrieval_strategy,
+            retrieval_plan.top_k,
+            attempt,
+            retrieval_duration_seconds,
+            len(documents),
         )
 
         attempt_detail = attempt if attempt > 1 else None
@@ -280,6 +315,14 @@ def ask_question(question: str) -> dict[str, Any]:
 
             generation_duration_seconds = perf_counter() - generation_start
 
+            logger.info(
+                "ask.generation completed attempt=%s duration_seconds=%.2f "
+                "source_count=%s",
+                attempt,
+                generation_duration_seconds,
+                len(documents),
+            )
+
             trace.append(
                 build_trace_item(
                     step="generate_answer",
@@ -303,6 +346,7 @@ def ask_question(question: str) -> dict[str, Any]:
         except Exception as exc:
             last_error = exc
             last_generation_duration_seconds = perf_counter() - generation_start
+
             if attempt < max_attempts:
                 trace.append(
                     build_trace_item(
@@ -317,6 +361,22 @@ def ask_question(question: str) -> dict[str, Any]:
                             ),
                         },
                     )
+                )
+
+                logger.warning(
+                    "ask.generation retrying attempt=%s duration_seconds=%.2f "
+                    "error_type=%s",
+                    attempt,
+                    last_generation_duration_seconds,
+                    type(exc).__name__,
+                )
+            else:
+                logger.error(
+                    "ask.generation failed attempt=%s duration_seconds=%.2f "
+                    "error_type=%s",
+                    attempt,
+                    last_generation_duration_seconds,
+                    type(exc).__name__,
                 )
 
     if last_error is not None:

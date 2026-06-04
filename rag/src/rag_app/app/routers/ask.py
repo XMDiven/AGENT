@@ -22,7 +22,7 @@ def stream_response_events(question: str) -> Iterator[str]:
 
 
 @router.post("/ask", response_model=AnswerResponse)
-async def ask(request: AskRequest) -> AnswerResponse:
+def ask(request: AskRequest) -> AnswerResponse:
     result = ask_question(request.question)
     return AnswerResponse(**result)
 

@@ -1,9 +1,18 @@
+import logging
+
 from fastapi import FastAPI
 
 from rag_app.app.routers.ask import router as ask_router
 from rag_app.app.routers.documents import router as document_router
 from rag_app.app.routers.health import router as health_router
 from rag_app.app.routers.prompt_eval import router as prompt_eval_router
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+
 
 app = FastAPI()
 

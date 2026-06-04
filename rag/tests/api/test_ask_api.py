@@ -57,6 +57,7 @@ def test_ask_returns_422_when_question_is_missing(client: TestClient) -> None:
 def test_ask_stream_returns_ndjson_events(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
+    app_resources: AppResources,
 ) -> None:
     expected_events = [
         {
@@ -107,4 +108,7 @@ def test_ask_stream_returns_ndjson_events(
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("application/x-ndjson")
     assert parse_ndjson(response.text) == expected_events
-    mock_stream_ask_question.assert_called_once_with("LangChain 是什么？")
+    mock_stream_ask_question.assert_called_once_with(
+        question="LangChain 是什么？",
+        resources=app_resources,
+    )

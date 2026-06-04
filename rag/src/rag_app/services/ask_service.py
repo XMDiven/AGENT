@@ -414,7 +414,10 @@ def ask_question(
     }
 
 
-def stream_ask_question(question: str) -> Iterator[dict[str, Any]]:
+def stream_ask_question(
+    question: str,
+    resources: AppResources | None = None,
+) -> Iterator[dict[str, Any]]:
     trace: list[dict[str, Any]] = []
     analysis = analyze_query(question)
 
@@ -470,6 +473,7 @@ def stream_ask_question(question: str) -> Iterator[dict[str, Any]]:
     documents = retrieve_documents_with_retry(
         retrieval_plan=retrieval_plan,
         trace=trace,
+        resources=resources,
     )
 
     if not documents:
@@ -481,7 +485,7 @@ def stream_ask_question(question: str) -> Iterator[dict[str, Any]]:
 
     try:
         context = format_context(documents)
-        llm = get_client()
+        llm = resources.llm_client if resources is not None else get_client()
         prompt = get_qa_prompt()
 
         for chunk in stream_answer(

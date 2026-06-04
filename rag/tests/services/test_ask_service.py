@@ -3,6 +3,7 @@ from unittest.mock import Mock
 from langchain_core.documents import Document
 
 from rag_app.config import config
+from rag_app.infrastructure.resources import AppResources
 from rag_app.services.ask_service import (
     apply_retrieval_strategy,
     ask_question,
@@ -510,6 +511,73 @@ def test_stream_ask_question_streams_answer_chunks(monkeypatch) -> None:
         llm="fake-llm",
     )
     mock_retriever.invoke.assert_called_once_with("LangChain 是什么？")
+
+
+def test_stream_ask_question_uses_resources(monkeypatch) -> None:
+    documents = [
+        Document(
+            page_content="LangChain is a framework for developing applications.",
+            metadata={
+                "source": "data/raw/langchain-docs.md",
+                "section_path": "Introduction > Overview",
+            },
+        )
+    ]
+
+    mock_retriever = Mock()
+    mock_retriever.invoke.return_value = documents
+    mock_vector_store = Mock()
+    mock_vector_store.as_retriever.return_value = mock_retriever
+    mock_llm = Mock()
+    mock_stream_answer = Mock(return_value=iter(["LangChain 是一个框架。"]))
+    mock_get_client = Mock(
+        side_effect=AssertionError("get_client should not be called")
+    )
+    resources = AppResources(
+        llm_client=mock_llm,
+        vector_store=mock_vector_store,
+    )
+
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.format_context",
+        lambda docs: "formatted context",
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_client",
+        mock_get_client,
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_qa_prompt",
+        lambda: "fake-prompt",
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.stream_answer",
+        mock_stream_answer,
+    )
+
+    events = list(
+        stream_ask_question(
+            "LangChain 是什么？",
+            resources=resources,
+        )
+    )
+
+    assert events[0] == {
+        "type": "answer_delta",
+        "content": "LangChain 是一个框架。",
+    }
+    mock_vector_store.as_retriever.assert_called_once_with(
+        search_type="similarity",
+        search_kwargs={"k": config.RETRIEVAL_TOP_K},
+    )
+    mock_retriever.invoke.assert_called_once_with("LangChain 是什么？")
+    mock_get_client.assert_not_called()
+    mock_stream_answer.assert_called_once_with(
+        question="LangChain 是什么？",
+        context="formatted context",
+        prompt="fake-prompt",
+        llm=mock_llm,
+    )
 
 
 def test_stream_ask_question_retries_retrieval_once(monkeypatch) -> None:

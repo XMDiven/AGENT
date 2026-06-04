@@ -69,8 +69,8 @@ AI 应用开发 / LLM Engineering 实习通常考察：
 |---|---|---|---|---|---|
 | 0.1 | 端到端 demo 落到 `docs/demo/` | 地基 | 是 | [x] | 2026-06-04 |
 | 0.2 | 修 async 错配 + 加结构化日志 | 地基 | 否 | [x] | 2026-06-04 |
-| 0.3 | 统一流式/非流式检索重试 + 客户端复用 | 地基 | 部分 | [ ] | |
-| 1.1 | 真实 Function Calling 的 Agent ⚠默认先做 | 深度 | 是 | [ ] | |
+| 0.3 | 统一流式/非流式检索重试 + 客户端复用 | 地基 | 部分 | [x] | 2026-06-04 |
+| 1.1 | 真实 Function Calling 的 Agent ⚠默认先做 | 深度 | 是 | [~] 进行中 | 代码+测试已成；待①真模型验证 tool calling ②trace 补 tool_args |
 | 1.2 | 可量化的检索质量优化 | 深度 | 是 | [ ] | |
 | 1.3 | 用真工具替换 summary/web_search 桩 | 深度 | 是 | [ ] | |
 | 2.1 | 扩评测样本并留运行记录 | 规模 | 是 | [ ] | |
@@ -104,9 +104,9 @@ AI 应用开发 / LLM Engineering 实习通常考察：
 ### B 档：原型级（能跑，缺边界 / 可观测 / 一致性）
 
 - ~~**async/sync 错配（生产隐患）**：`/ask`、`/ingest` 是 `async def` 却调阻塞同步 I/O（`ask.py:24-27`、`documents.py:86-92`），高并发阻塞事件循环。（→任务 0.2）~~ 已于 2026-06-04 修复：阻塞路由改为同步 handler，并用测试固定。
-- **流式与非流式不一致**：`stream_ask_question` 直接 `retriever.invoke()`，**无**重试（`ask_service.py:398-399` vs `128-197`）。（→任务 0.3）
+- ~~**流式与非流式不一致**：`stream_ask_question` 直接 `retriever.invoke()`，**无**重试（`ask_service.py:398-399` vs `128-197`）。（→任务 0.3）~~ 已于 2026-06-04 修复：`/ask/stream` 复用 `retrieve_documents_with_retry`，检索失败进入 retry/fallback trace，并有测试覆盖。
 - ~~**零日志**：全仓库 grep 不到 `logging`，只有 in-band trace。（→任务 0.2）~~ 已于 2026-06-04 修复：RAG app 配置标准库 `logging`，ask/ingest 服务记录耗时与错误；request-id 可作为后续可观测性增强。
-- **客户端无复用**：`get_client`/`get_vector_store`/`get_retriever` 每请求重建（`llm_client.py:9-29`、`vector_store.py:15-27`、`retriever.py:5-14`）。（→任务 0.3）
+- ~~**客户端无复用**：`get_client`/`get_vector_store`/`get_retriever` 每请求重建（`llm_client.py:9-29`、`vector_store.py:15-27`、`retriever.py:5-14`）。（→任务 0.3）~~ 已于 2026-06-04 修复：FastAPI lifespan 创建 `AppResources`，`/ask`、`/ask/stream`、`/documents/ingest` 复用启动期 LLM client/vector store；请求级 retriever 仍按 `top_k` 轻量创建。
 - **配置半集中**：`CHUNK_SIZE/CHUNK_OVERLAP` 硬编码 `config.py:11-12`；`load_dotenv` 三处重复；`vector_store.py:16` 直接 `os.getenv` 绕过 config。（→任务 2.2）
 - **无 lint/type 检查**：有类型标注但无 mypy/ruff，dev 依赖只有 pytest。
 
@@ -114,7 +114,7 @@ AI 应用开发 / LLM Engineering 实习通常考察：
 
 - **`summary_tool` 不是摘要**：`summary.py` 是 `text[:200]` 截断。（→任务 1.3）
 - **`question_decompose` 极脆**：只有 `"分别"` 一个可靠切分模式，否则原样返回（`question_decompose.py:62-66`）。（→任务 1.1 改造后弱化）
-- **planner 是关键词 if/else**：`planner.py:13-35`，无 LLM、无 function calling。（→任务 1.1）
+- ~~**planner 是关键词 if/else**：`planner.py:13-35`，无 LLM、无 function calling。（→任务 1.1）~~ 已于 2026-06-04 改造：`plan_tool` 走 LLM native function calling（`tool_selector.py` 用 `bind_tools` + `tool_choice="auto"`）选工具并填参，规则式 `plan_tool_by_rules` 降为 fallback，两条路径有测试。⚠ 仍待真实模型验证 tool calling 真能返回 tool_calls，否则线上恒走 fallback。
 - **chunking 只有两种**：Markdown=header+Recursive、PDF=Recursive；**代码中未发现** fixed-size 抽象或 semantic chunker。
 - **检索只是 plain similarity top-k**：`retriever.py:9-12`，无 rerank/hybrid/MMR/filter。（→任务 1.2）
 - **评测样本极小**：11 golden cases、2 prompt 版本、3 个 judge run。（→任务 2.1）
@@ -122,9 +122,9 @@ AI 应用开发 / LLM Engineering 实习通常考察：
 ### 最严重的工程问题（按对生产质量影响排序）
 1. ~~async 路由跑阻塞 I/O（并发正确性）→任务 0.2~~ 已修复，2026-06-04
 2. ~~完全没有日志/可观测性（不可运维）→任务 0.2~~ 基础 logging 已补，2026-06-04
-3. 流式与非流式健壮性不一致→任务 0.3
-4. 核心 Agent 逻辑是字符串规则（岗位短板）→任务 1.1
-5. 客户端每请求重建 + 配置分散→任务 0.3 / 2.2
+3. ~~流式与非流式健壮性不一致→任务 0.3~~ 已修复，2026-06-04
+4. ~~核心 Agent 逻辑是字符串规则（岗位短板）→任务 1.1~~ 已改造为 LLM function calling + 规则 fallback，2026-06-04；待真实模型验证 + trace 补 tool_args
+5. ~~客户端每请求重建~~ 已通过 lifespan resources 修复，2026-06-04；配置分散仍留到任务 2.2
 
 ---
 
@@ -175,6 +175,7 @@ AI 应用开发 / LLM Engineering 实习通常考察：
 - 验收命令：`cd agent && conda run -n AI_DEV pytest tests/ -q` + 新增 function-calling/fallback 单测。
 - 完成信号：`/agent/run` 的 trace 能看到「模型选了哪个工具、参数是什么」；两条路径都有测试。
 - 不做：不引入 AutoGen；不删规则式 planner（它是 fallback）。
+- 进展（2026-06-04）：已实现 `tool_selector.select_tool_with_llm`（`bind_tools` + `tool_choice="auto"`，单工具取首个 tool_call，未知工具抛错）+ `planner.plan_tool`（LLM 优先、异常 fallback 规则并记 warning）+ `service.run_agent` 透传 `tool_args`；`cd agent && conda run -n AI_DEV pytest tests/ -q` → 45 passed。**未达成（清掉前不勾 `[x]`）**：① ⚠ 真实 `LLM_MODEL_ID` 的 tool calling 未实跑验证，全部测试都 mock 了 `select_tool_with_llm`；② `plan_tool` 这步 trace 只记 `tool_name`/`reason`，还没记 `tool_args`，不满足「参数是什么」。
 
 **任务 1.2 · 可量化的检索质量优化（M–L，需 live stack）**
 - 做什么：加一种召回增强（reranking / metadata filter / MMR 选一）；先定义指标（source hit rate / all-source hit rate），固定 baseline 与 case set，量「改进前→改进后」，扩 golden set，写报告并标注样本量。

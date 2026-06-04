@@ -1,4 +1,6 @@
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
@@ -6,7 +8,7 @@ from rag_app.app.routers.ask import router as ask_router
 from rag_app.app.routers.documents import router as document_router
 from rag_app.app.routers.health import router as health_router
 from rag_app.app.routers.prompt_eval import router as prompt_eval_router
-
+from rag_app.infrastructure.resources import create_app_resources
 
 logging.basicConfig(
     level=logging.INFO,
@@ -14,7 +16,13 @@ logging.basicConfig(
 )
 
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    app.state.resources = create_app_resources()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 app.include_router(ask_router)

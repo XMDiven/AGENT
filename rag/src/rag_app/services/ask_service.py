@@ -11,6 +11,7 @@ from rag_app.generation.answer_generator import generate_answer, stream_answer
 from rag_app.generation.context_formatter import format_context
 from rag_app.generation.qa_prompt import get_qa_prompt
 from rag_app.infrastructure.llm_client import get_client
+from rag_app.infrastructure.resources import AppResources
 from rag_app.retrieval.query_analyzer import analyze_query
 from rag_app.retrieval.retriever import get_retriever
 from rag_app.retrieval.retrieval_planner import RetrievalPlan, plan_retrieval
@@ -132,6 +133,7 @@ def build_retrieval_trace_detail(
 def retrieve_documents_with_retry(
     retrieval_plan: RetrievalPlan,
     trace: list[dict[str, Any]],
+    resources: AppResources | None = None,
 ) -> list[Document]:
     max_attempts = config.MAX_RETRIEVAL_RETRY + 1
     last_error: Exception | None = None
@@ -141,7 +143,13 @@ def retrieve_documents_with_retry(
         retrieval_start = perf_counter()
 
         try:
-            retriever = get_retriever(top_k=retrieval_plan.top_k)
+            if resources is None:
+                retriever = get_retriever(top_k=retrieval_plan.top_k)
+            else:
+                retriever = get_retriever(
+                    top_k=retrieval_plan.top_k,
+                    vector_store=resources.vector_store,
+                )
             documents = retriever.invoke(retrieval_plan.retrieval_query)
         except Exception as exc:
             last_error = exc
@@ -232,7 +240,10 @@ def retrieve_documents_with_retry(
     return []
 
 
-def ask_question(question: str) -> dict[str, Any]:
+def ask_question(
+    question: str,
+    resources: AppResources | None = None,
+) -> dict[str, Any]:
     trace: list[dict[str, Any]] = []
     analysis = analyze_query(question)
 
@@ -287,6 +298,7 @@ def ask_question(question: str) -> dict[str, Any]:
     documents = retrieve_documents_with_retry(
         retrieval_plan=retrieval_plan,
         trace=trace,
+        resources=resources,
     )
 
     if not documents:
@@ -304,7 +316,7 @@ def ask_question(question: str) -> dict[str, Any]:
         generation_start = perf_counter()
         try:
             context = format_context(documents)
-            llm = get_client()
+            llm = resources.llm_client if resources is not None else get_client()
             prompt = get_qa_prompt()
             answer = generate_answer(
                 question=analysis.normalized_question,

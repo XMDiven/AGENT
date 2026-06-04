@@ -2,7 +2,7 @@ import json
 from collections.abc import Iterator
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
 from rag_app.schemas.answer_schema import AnswerResponse
@@ -22,8 +22,11 @@ def stream_response_events(question: str) -> Iterator[str]:
 
 
 @router.post("/ask", response_model=AnswerResponse)
-def ask(request: AskRequest) -> AnswerResponse:
-    result = ask_question(request.question)
+def ask(request: Request, body: AskRequest) -> AnswerResponse:
+    result = ask_question(
+        body.question,
+        resources=request.app.state.resources,
+    )
     return AnswerResponse(**result)
 
 

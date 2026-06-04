@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from rag_app.app.routers import ask as ask_router
+from rag_app.infrastructure.resources import AppResources
 
 
 def parse_ndjson(text: str) -> list[dict]:
@@ -19,6 +20,7 @@ def test_ask_route_handler_is_sync() -> None:
 def test_ask_returns_answer_and_sources(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
+    app_resources: AppResources,
 ) -> None:
     expected = {
         "answer": "LangChain 是一个用于构建 LLM 应用的框架。",
@@ -39,7 +41,10 @@ def test_ask_returns_answer_and_sources(
 
     assert response.status_code == 200
     assert response.json() == expected
-    mock_ask_question.assert_called_once_with("LangChain 是什么？")
+    mock_ask_question.assert_called_once_with(
+        "LangChain 是什么？",
+        resources=app_resources,
+    )
 
 
 def test_ask_returns_422_when_question_is_missing(client: TestClient) -> None:

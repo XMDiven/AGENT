@@ -1,29 +1,32 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from langchain_core.documents import Document
 
-from rag_app.retrieval.retriever import get_retriever
 from rag_app.config import config
+from rag_app.retrieval.retriever import get_retriever
 
 DEFAULT_CASES_PATH = config.PROJECT_ROOT / "experiments" / "retrieval_eval_cases.json"
 
+
 @dataclass(frozen=True)
 class RetrievalEvalCase:
-    id : str
-    question : str
-    expected_source_contains:list[str]
-    match : str = "any"
-def load_case(path : Path = DEFAULT_CASES_PATH) ->list[RetrievalEvalCase]:
+    id: str
+    question: str
+    expected_source_contains: list[str]
+    match: str = "any"
+
+
+def load_case(path: Path = DEFAULT_CASES_PATH) -> list[RetrievalEvalCase]:
     raw_cases = json.loads(path.read_text(encoding="utf-8"))
 
     return [
         RetrievalEvalCase(
-            id = case["id"],
+            id=case["id"],
             question=case["question"],
             expected_source_contains=case["expected_source_contains"],
             match=case.get("match", "any"),
@@ -31,18 +34,46 @@ def load_case(path : Path = DEFAULT_CASES_PATH) ->list[RetrievalEvalCase]:
         for case in raw_cases
     ]
 
-def get_sources(documents : list[Document]) -> list[str]:
+
+def get_sources(documents: list[Document]) -> list[str]:
     return [
-        document.metadata.get("source" , "")
+        document.metadata.get("source", "")
         for document in documents
     ]
 
 
+def find_first_hit_rank(
+    sources: list[str],
+    expected_source_contains: list[str],
+) -> int | None:
+    normalize_sources = [source.lower() for source in sources]
+    normalize_expected = [expected.lower() for expected in expected_source_contains]
+
+    for index, source in enumerate(normalize_sources, start=1):
+        if any(expected in source for expected in normalize_expected):
+            return index
+
+    return None
+
+
+def count_expected_source_hits(
+    sources: list[str],
+    expected_source_contains: list[str],
+) -> int:
+    normalize_sources = [source.lower() for source in sources]
+    normalize_expected = [expected.lower() for expected in expected_source_contains]
+
+    return sum(
+        1
+        for expected in normalize_expected
+        if any(expected in source for source in normalize_sources)
+    )
+
 
 def has_expected_sources(
-        sources : list[str] ,
-        expected_source_contains: list[str],
-        match : str = "any"
+    sources: list[str],
+    expected_source_contains: list[str],
+    match: str = "any",
 ) -> bool:
     normalize_sources = [source.lower() for source in sources]
     normalize_expected = [expected.lower() for expected in expected_source_contains]
@@ -63,16 +94,57 @@ def has_expected_sources(
     raise ValueError(f"Unsupported match mode: {match}")
 
 
-def evaluate_case(case:RetrievalEvalCase , documents: list[Document]) -> dict[str, Any]:
-
-    sources = get_sources(documents)
-
+def evaluate_source_hits(
+    sources: list[str],
+    expected_source_contains: list[str],
+    match: str = "any",
+) -> dict[str, Any]:
+    first_hit_rank = find_first_hit_rank(
+        sources=sources,
+        expected_source_contains=expected_source_contains,
+    )
+    expected_total = len(expected_source_contains)
+    expected_hit_count = count_expected_source_hits(
+        sources=sources,
+        expected_source_contains=expected_source_contains,
+    )
     passed = has_expected_sources(
-        sources ,
-        case.expected_source_contains,
-        case.match
+        sources=sources,
+        expected_source_contains=expected_source_contains,
+        match=match,
     )
 
+    reciprocal_rank = 0.0
+    if first_hit_rank is not None:
+        reciprocal_rank = round(1 / first_hit_rank, 3)
+
+    source_coverage = 0.0
+    if expected_total > 0:
+        source_coverage = round(expected_hit_count / expected_total, 3)
+
+    return {
+        "passed": passed,
+        "first_hit_rank": first_hit_rank,
+        "reciprocal_rank": reciprocal_rank,
+        "expected_source_hit_count": expected_hit_count,
+        "expected_source_total": expected_total,
+        "expected_source_coverage": source_coverage,
+    }
+
+
+def evaluate_case(
+    case: RetrievalEvalCase,
+    documents: list[Document],
+) -> dict[str, Any]:
+    sources = get_sources(documents)
+
+    source_metrics = evaluate_source_hits(
+        sources=sources,
+        expected_source_contains=case.expected_source_contains,
+        match=case.match,
+    )
+
+    passed = source_metrics["passed"]
     status = "PASS" if passed else "FAIL"
 
     print(f"Evaluating {case.id} with {status}")
@@ -91,26 +163,65 @@ def evaluate_case(case:RetrievalEvalCase , documents: list[Document]) -> dict[st
         "passed": passed,
         "expected_source_contains": case.expected_source_contains,
         "retrieved_sources": sources,
+        "source_metrics": source_metrics,
     }
 
 
-
-
-def run_evaluation() -> dict:
+def run_evaluation() -> dict[str, Any]:
     cases = load_case()
     retriever = get_retriever()
     case_results = []
+
     for case in cases:
         documents = retriever.invoke(case.question)
         result = evaluate_case(case, documents)
         case_results.append(result)
+
     passed_count = sum(result["passed"] for result in case_results)
     total_count = len(case_results)
+    source_metrics = [result["source_metrics"] for result in case_results]
+
+    source_hit_rate = (
+        round(passed_count / total_count, 3)
+        if total_count
+        else 0.0
+    )
+    mrr = (
+        round(
+            sum(metric["reciprocal_rank"] for metric in source_metrics)
+            / total_count,
+            3,
+        )
+        if total_count
+        else 0.0
+    )
+    average_expected_source_coverage = (
+        round(
+            sum(
+                metric["expected_source_coverage"]
+                for metric in source_metrics
+            )
+            / total_count,
+            3,
+        )
+        if total_count
+        else 0.0
+    )
+
     print(f"summary: {passed_count}/{total_count} passed")
+    print(f"source_hit_rate: {source_hit_rate:.3f}")
+    print(f"mrr: {mrr:.3f}")
+    print(
+        "average_expected_source_coverage: "
+        f"{average_expected_source_coverage:.3f}"
+    )
 
     return {
         "passed": passed_count,
         "total": total_count,
+        "source_hit_rate": source_hit_rate,
+        "mrr": mrr,
+        "average_expected_source_coverage": average_expected_source_coverage,
         "cases": case_results,
     }
 
@@ -120,6 +231,7 @@ def main() -> None:
 
     if summary["passed"] != summary["total"]:
         raise SystemExit(1)
+
 
 if "__main__" == __name__:
     main()

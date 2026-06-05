@@ -84,8 +84,34 @@ average_expected_source_coverage: 1.000
 3. Expected source coverage is also saturated at `1.000`, so it is useful as a regression guard rather than an improvement signal for the current case set.
 4. The comparison case still reveals a useful signal: LlamaIndex sources rank above the LangChain source, but both expected labels appear within top 7.
 
+## Top-k Comparison - 2026-06-06
+
+This comparison keeps the same retriever strategy (`similarity`) and only changes
+the number of returned documents. It was run by calling `get_retriever(top_k=...)`
+directly, without changing `retriever.py` or project configuration.
+
+| Top k | Passed | Source hit rate | MRR | Average expected source coverage |
+|---:|---:|---:|---:|---:|
+| 7 | 11/11 | 1.000 | 0.909 | 1.000 |
+| 3 | 10/11 | 0.909 | 0.909 | 0.955 |
+
+`top_k=3` failed one case:
+
+| Case | Match | Expected hit count | Coverage | Top 3 retrieved sources |
+|---|---|---:|---:|---|
+| `langchain_llamaindex_comparison` | all | 1/2 | 0.500 | `data/raw/llamaindex-docs.md`, `data/raw/llamaindex-docs.md`, `data/raw/aiapp-03-llamaindex-readme.md` |
+
+Interpretation:
+
+1. `top_k=3` does not reduce MRR because the first expected source is still at rank 1.
+2. `top_k=3` does reduce coverage because the `match="all"` comparison case needs both `llamaindex` and `langchain`, but only LlamaIndex-related sources appear in the top 3.
+3. This shows why MRR alone is insufficient for this project: it rewards the first relevant hit, but it does not tell whether all required sources were retrieved.
+
 ## Recommended Next Step
 
-Run a controlled `top_k=3` comparison against this baseline before changing
-`retriever.py`. If ranking or coverage drops, keep `top_k=7`; if the stricter
-run stays stable, use it as evidence that smaller retrieval context is viable.
+Keep `top_k=7` for now. The current evidence does not support reducing retrieval
+context to `top_k=3`.
+
+The next retrieval optimization should focus on reducing repeated sources and
+improving diversity while preserving expected source coverage. A reasonable next
+experiment is MMR or source-diversified reranking, measured against this baseline.

@@ -183,7 +183,7 @@ AI 应用开发 / LLM Engineering 实习通常考察：
 - 验收命令：`cd rag && conda run -n AI_DEV python -m rag_app.scripts.evaluate_retrieval`（前后各跑一次对比）。
 - 完成信号：`experiments/` 有含指标定义、公式、前后对比、样本量的报告。
 - 不做：不把 10/11→11/11 硬写成「20%」。
-- 进展（2026-06-05）：已跑当前 plain similarity `top_k=7` baseline，记录到 `rag/experiments/retrieval_baseline_2026-06-05.md`；已补 first-hit rank / MRR / expected source coverage 指标。当前 11 cases `11/11 passed`，`source_hit_rate=1.000`，`mrr=0.909`，`average_expected_source_coverage=1.000`；下一步做 `top_k=3` 对比，再决定是否改 MMR 等检索策略。
+- 进展（2026-06-06）：已跑当前 plain similarity `top_k=7` baseline，记录到 `rag/experiments/retrieval_baseline_2026-06-05.md`；已补 first-hit rank / MRR / expected source coverage 指标。`top_k=7` 为 11/11 passed，`source_hit_rate=1.000`，`mrr=0.909`，`average_expected_source_coverage=1.000`；`top_k=3` 为 10/11 passed，`source_hit_rate=0.909`，`mrr=0.909`，`average_expected_source_coverage=0.955`。结论：暂时保留 `top_k=7`，下一步做 MMR 或 source-diversified reranking，目标是减少重复来源但不牺牲 coverage。
 
 **任务 1.3 · 用真工具替换 demo 桩（M，需 live stack）**
 - 做什么：`summary_tool` 换成 LLM 摘要（带长度/失败处理）；加**受控** `web_search_tool`（明确 API 边界、超时、失败处理、mock 测试）。

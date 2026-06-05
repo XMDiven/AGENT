@@ -37,6 +37,13 @@ def run_agent(question: str) -> AgentRunResult:
         tool_input=tool_input,
     )
 
+    plan_detail: dict[str, Any] = {
+        "tool_name": plan.tool.name,
+        "reason": plan.reason,
+    }
+    if plan.tool_args is not None:
+        plan_detail["tool_args"] = plan.tool_args
+
     execute_detail: dict[str, Any] = {
         "tool_name": tool_result.tool_name,
         "attempts": tool_result.attempts,
@@ -68,10 +75,7 @@ def run_agent(question: str) -> AgentRunResult:
         {
             "step": "plan_tool",
             "status": "completed",
-            "detail": {
-                "tool_name": plan.tool.name,
-                "reason": plan.reason,
-            },
+            "detail": plan_detail,
         },
         {
             "step": "execute_tool",

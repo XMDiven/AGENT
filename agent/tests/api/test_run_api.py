@@ -119,6 +119,9 @@ def test_run_agent_endpoint_returns_success_when_retrieval_succeeds(
     assert data["selected_tool"] == "retrieval_tool"
     assert data["tool_status"] == "success"
     assert data["tool_output"] == expected
+    assert data["trace"][1]["detail"]["tool_args"] == {
+        "question": "What is RAG?",
+    }
     assert data["trace"][-1] == {
         "step": "execute_tool",
         "status": "success",
@@ -162,6 +165,9 @@ def test_run_agent_endpoint_uses_summary_tool_for_summary_question(
     assert data["tool_status"] == "success"
     assert data["tool_output"] == {
         "summary": "请总结 LangChain 的用途",
+    }
+    assert data["trace"][1]["detail"]["tool_args"] == {
+        "text": "请总结 LangChain 的用途",
     }
     assert data["trace"][-1] == {
         "step": "execute_tool",

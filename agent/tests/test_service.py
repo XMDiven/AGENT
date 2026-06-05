@@ -74,6 +74,9 @@ def test_run_agent_uses_retrieval_tool(monkeypatch) -> None:
             "detail": {
                 "tool_name": "retrieval_tool",
                 "reason": "llm selected tool via native tool calling",
+                "tool_args": {
+                    "question": "rewritten retrieval question",
+                },
             },
         },
         {
@@ -179,6 +182,9 @@ def test_run_agent_uses_summary_tool_for_summary_question(monkeypatch) -> None:
             "detail": {
                 "tool_name": "summary_tool",
                 "reason": "llm selected tool via native tool calling",
+                "tool_args": {
+                    "text": "请总结 LangChain 的用途",
+                },
             },
         },
         {

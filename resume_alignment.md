@@ -71,7 +71,7 @@ AI 应用开发 / LLM Engineering 实习通常考察：
 | 0.2 | 修 async 错配 + 加结构化日志 | 地基 | 否 | [x] | 2026-06-04 |
 | 0.3 | 统一流式/非流式检索重试 + 客户端复用 | 地基 | 部分 | [x] | 2026-06-04 |
 | 1.1 | 真实 Function Calling 的 Agent | 深度 | 是 | [x] | 2026-06-04 |
-| 1.2 | 可量化的检索质量优化 | 深度 | 是 | [ ] | |
+| 1.2 | 可量化的检索质量优化 | 深度 | 是 | [x] | 2026-06-06 |
 | 1.3 | 用真工具替换 summary/web_search 桩 | 深度 | 是 | [ ] | |
 | 2.1 | 扩评测样本并留运行记录 | 规模 | 是 | [ ] | |
 | 2.2 | app 加 Dockerfile + pydantic-settings | 规模 | 否 | [ ] | |
@@ -116,7 +116,7 @@ AI 应用开发 / LLM Engineering 实习通常考察：
 - **`question_decompose` 极脆**：只有 `"分别"` 一个可靠切分模式，否则原样返回（`question_decompose.py:62-66`）。（→任务 1.1 改造后弱化）
 - ~~**planner 是关键词 if/else**：`planner.py:13-35`，无 LLM、无 function calling。（→任务 1.1）~~ 已于 2026-06-04 修复：`plan_tool` 走 LLM native function calling（`tool_selector.py` 用 `bind_tools` + `tool_choice="auto"`）选工具并填参，规则式 `plan_tool_by_rules` 降为 fallback；真实模型已验证能返回 `tool_calls`，`/agent/run` trace 能看到 `tool_args`。
 - **chunking 只有两种**：Markdown=header+Recursive、PDF=Recursive；**代码中未发现** fixed-size 抽象或 semantic chunker。
-- **检索只是 plain similarity top-k**：`retriever.py:9-12`，无 rerank/hybrid/MMR/filter。（→任务 1.2）
+- ~~**检索只是 plain similarity top-k**：`retriever.py:9-12`，无 rerank/hybrid/MMR/filter。（→任务 1.2）~~ 已于 2026-06-06 修复：检索策略改为配置控制，默认 `mmr top_k=7 fetch_k=50 lambda_mult=0.3`；保留 `RETRIEVAL_SEARCH_TYPE=similarity` 快速回退。
 - **评测样本极小**：11 golden cases、2 prompt 版本、3 个 judge run。（→任务 2.1）
 
 ### 最严重的工程问题（按对生产质量影响排序）
@@ -183,7 +183,7 @@ AI 应用开发 / LLM Engineering 实习通常考察：
 - 验收命令：`cd rag && conda run -n AI_DEV python -m rag_app.scripts.evaluate_retrieval`（前后各跑一次对比）。
 - 完成信号：`experiments/` 有含指标定义、公式、前后对比、样本量的报告。
 - 不做：不把 10/11→11/11 硬写成「20%」。
-- 进展（2026-06-06）：已跑当前 plain similarity `top_k=7` baseline，记录到 `rag/experiments/retrieval_baseline_2026-06-05.md`；已补 first-hit rank / MRR / expected source coverage 指标。`top_k=7` 为 11/11 passed，`source_hit_rate=1.000`，`mrr=0.909`，`average_expected_source_coverage=1.000`；`top_k=3` 为 10/11 passed，`source_hit_rate=0.909`，`mrr=0.909`，`average_expected_source_coverage=0.955`。结论：暂时保留 `top_k=7`，下一步做 MMR 或 source-diversified reranking，目标是减少重复来源但不牺牲 coverage。
+- 完成记录（2026-06-06）：已跑当前 plain similarity `top_k=7` baseline，记录到 `rag/experiments/retrieval_baseline_2026-06-05.md`；已补 first-hit rank / MRR / expected source coverage / unique source 指标，并让 `evaluate_retrieval` 与 `evaluate_answers_with_judge` 支持显式 `--search-type/--top-k/--fetch-k/--lambda-mult` 实验。`top_k=3` 对比为 10/11 passed，coverage 从 1.000 降到 0.955，结论是保留 `top_k=7`。当前默认检索策略已切到配置控制的 `mmr top_k=7 fetch_k=50 lambda_mult=0.3`：retrieval eval 11/11 passed，`source_hit_rate=1.000`，`mrr=0.909`，coverage=1.000，average unique sources 从 2.545 提升到 3.818；answer-level judge 也为 11/11 passed（`rag/experiments/judge_runs/20260606-111842.json`），关键对比题 live `ask_question` smoke 正常。若后续样本回归，可设置 `RETRIEVAL_SEARCH_TYPE=similarity` 快速回退。
 
 **任务 1.3 · 用真工具替换 demo 桩（M，需 live stack）**
 - 做什么：`summary_tool` 换成 LLM 摘要（带长度/失败处理）；加**受控** `web_search_tool`（明确 API 边界、超时、失败处理、mock 测试）。

@@ -1,6 +1,7 @@
 import pytest
 from langchain_core.documents import Document
 
+from rag_app.config import config
 from rag_app.scripts.evaluate_retrieval import (
     RetrievalEvalCase,
     count_expected_source_hits,
@@ -183,7 +184,7 @@ def test_run_evaluation_summarizes_ranking_metrics(monkeypatch) -> None:
     )
     monkeypatch.setattr(
         "rag_app.scripts.evaluate_retrieval.get_retriever",
-        lambda: FakeRetriever(),
+        lambda **kwargs: FakeRetriever(),
     )
 
     summary = run_evaluation()
@@ -193,3 +194,119 @@ def test_run_evaluation_summarizes_ranking_metrics(monkeypatch) -> None:
     assert summary["source_hit_rate"] == 1.0
     assert summary["mrr"] == 0.75
     assert summary["average_expected_source_coverage"] == 1.0
+    assert summary["average_unique_source_count"] == 1.5
+    assert summary["average_duplicate_source_count"] == 0.0
+
+
+def test_run_evaluation_passes_retrieval_options_to_retriever(monkeypatch) -> None:
+    cases = [
+        RetrievalEvalCase(
+            id="case_1",
+            question="Question one",
+            expected_source_contains=["qdrant"],
+        ),
+    ]
+    documents = [
+        Document(
+            page_content="",
+            metadata={"source": "data/raw/qdrant-docs.md"},
+        )
+    ]
+    calls = []
+
+    class FakeRetriever:
+        def invoke(self, question: str) -> list[Document]:
+            return documents
+
+    def fake_get_retriever(**kwargs) -> FakeRetriever:
+        calls.append(kwargs)
+        return FakeRetriever()
+
+    monkeypatch.setattr(
+        "rag_app.scripts.evaluate_retrieval.load_case",
+        lambda: cases,
+    )
+    monkeypatch.setattr(
+        "rag_app.scripts.evaluate_retrieval.get_retriever",
+        fake_get_retriever,
+    )
+
+    summary = run_evaluation(
+        top_k=7,
+        search_type="mmr",
+        fetch_k=50,
+        lambda_mult=0.3,
+    )
+
+    assert calls == [
+        {
+            "top_k": 7,
+            "search_type": "mmr",
+            "fetch_k": 50,
+            "lambda_mult": 0.3,
+        }
+    ]
+    assert summary["retrieval_config"] == {
+        "top_k": 7,
+        "search_type": "mmr",
+        "fetch_k": 50,
+        "lambda_mult": 0.3,
+    }
+
+
+def test_run_evaluation_uses_configured_default_retrieval_config(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(config, "RETRIEVAL_SEARCH_TYPE", "mmr")
+    monkeypatch.setattr(config, "RETRIEVAL_TOP_K", 7)
+    monkeypatch.setattr(config, "RETRIEVAL_FETCH_K", 50)
+    monkeypatch.setattr(config, "RETRIEVAL_LAMBDA_MULT", 0.3)
+
+    cases = [
+        RetrievalEvalCase(
+            id="case_1",
+            question="Question one",
+            expected_source_contains=["qdrant"],
+        ),
+    ]
+    documents = [
+        Document(
+            page_content="",
+            metadata={"source": "data/raw/qdrant-docs.md"},
+        )
+    ]
+    calls = []
+
+    class FakeRetriever:
+        def invoke(self, question: str) -> list[Document]:
+            return documents
+
+    def fake_get_retriever(**kwargs) -> FakeRetriever:
+        calls.append(kwargs)
+        return FakeRetriever()
+
+    monkeypatch.setattr(
+        "rag_app.scripts.evaluate_retrieval.load_case",
+        lambda: cases,
+    )
+    monkeypatch.setattr(
+        "rag_app.scripts.evaluate_retrieval.get_retriever",
+        fake_get_retriever,
+    )
+
+    summary = run_evaluation()
+
+    assert calls == [
+        {
+            "top_k": None,
+            "search_type": None,
+            "fetch_k": None,
+            "lambda_mult": None,
+        }
+    ]
+    assert summary["retrieval_config"] == {
+        "top_k": config.RETRIEVAL_TOP_K,
+        "search_type": "mmr",
+        "fetch_k": config.RETRIEVAL_FETCH_K,
+        "lambda_mult": config.RETRIEVAL_LAMBDA_MULT,
+    }

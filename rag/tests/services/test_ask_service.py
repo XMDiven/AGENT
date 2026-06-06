@@ -138,6 +138,57 @@ def test_ask_question_returns_answer_and_sources(monkeypatch) -> None:
     mock_retriever.invoke.assert_called_once_with("LangChain 是什么？")
 
 
+def test_ask_question_passes_mmr_retrieval_options(monkeypatch) -> None:
+    documents = [
+        Document(
+            page_content="LangChain is a framework for developing applications.",
+            metadata={
+                "source": "data/raw/langchain-docs.md",
+                "section_path": "Introduction > Overview",
+            },
+        )
+    ]
+
+    mock_retriever = Mock()
+    mock_retriever.invoke.return_value = documents
+    mock_get_retriever = Mock(return_value=mock_retriever)
+
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_retriever",
+        mock_get_retriever,
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.format_context",
+        lambda docs: "formatted context",
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_client",
+        lambda: "fake-llm",
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.get_qa_prompt",
+        lambda: "fake-prompt",
+    )
+    monkeypatch.setattr(
+        "rag_app.services.ask_service.generate_answer",
+        lambda question, context, prompt, llm: "LangChain 是一个用于构建 LLM 应用的框架。",
+    )
+
+    ask_question(
+        "LangChain 是什么？",
+        search_type="mmr",
+        fetch_k=50,
+        lambda_mult=0.3,
+    )
+
+    mock_get_retriever.assert_called_once_with(
+        top_k=config.RETRIEVAL_TOP_K,
+        search_type="mmr",
+        fetch_k=50,
+        lambda_mult=0.3,
+    )
+
+
 def test_ask_question_returns_fallback_when_answer_generation_fails(
     monkeypatch,
 ) -> None:
@@ -514,6 +565,11 @@ def test_stream_ask_question_streams_answer_chunks(monkeypatch) -> None:
 
 
 def test_stream_ask_question_uses_resources(monkeypatch) -> None:
+    monkeypatch.setattr(config, "RETRIEVAL_SEARCH_TYPE", "mmr")
+    monkeypatch.setattr(config, "RETRIEVAL_TOP_K", 7)
+    monkeypatch.setattr(config, "RETRIEVAL_FETCH_K", 50)
+    monkeypatch.setattr(config, "RETRIEVAL_LAMBDA_MULT", 0.3)
+
     documents = [
         Document(
             page_content="LangChain is a framework for developing applications.",
@@ -567,8 +623,12 @@ def test_stream_ask_question_uses_resources(monkeypatch) -> None:
         "content": "LangChain 是一个框架。",
     }
     mock_vector_store.as_retriever.assert_called_once_with(
-        search_type="similarity",
-        search_kwargs={"k": config.RETRIEVAL_TOP_K},
+        search_type="mmr",
+        search_kwargs={
+            "k": config.RETRIEVAL_TOP_K,
+            "fetch_k": config.RETRIEVAL_FETCH_K,
+            "lambda_mult": config.RETRIEVAL_LAMBDA_MULT,
+        },
     )
     mock_retriever.invoke.assert_called_once_with("LangChain 是什么？")
     mock_get_client.assert_not_called()

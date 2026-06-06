@@ -3,8 +3,12 @@
 ## Purpose
 
 This report records the baseline retrieval quality for task 1.2 after adding
-stricter retrieval metrics, but before changing retrieval strategy.
-The current retriever is plain Qdrant similarity search with `top_k=7`.
+stricter retrieval metrics, then compares it with a configuration-controlled
+MMR retrieval strategy.
+
+The original baseline was plain Qdrant similarity search with `top_k=7`.
+The current default retrieval strategy is now controlled by environment
+configuration and defaults to `mmr top_k=7 fetch_k=50 lambda_mult=0.3`.
 
 ## Command
 
@@ -14,7 +18,7 @@ Run from `/Users/mdiven/Code/Projects/AGENT/rag`:
 conda run -n AI_DEV python -m rag_app.scripts.evaluate_retrieval
 ```
 
-## Current Retrieval Strategy
+## Original Baseline Retrieval Strategy
 
 Source: `rag/src/rag_app/retrieval/retriever.py`
 
@@ -23,7 +27,27 @@ search_type="similarity"
 search_kwargs={"k": effective_top_k}
 ```
 
-Effective `top_k`: `7`
+Effective baseline `top_k`: `7`
+
+## Current Default Retrieval Strategy
+
+Source: `rag/src/rag_app/config/config.py`
+
+```text
+RETRIEVAL_SEARCH_TYPE=mmr
+RETRIEVAL_TOP_K=7
+RETRIEVAL_FETCH_K=50
+RETRIEVAL_LAMBDA_MULT=0.3
+```
+
+To fall back quickly for a regression check, set:
+
+```text
+RETRIEVAL_SEARCH_TYPE=similarity
+```
+
+When `RETRIEVAL_SEARCH_TYPE=similarity`, `RETRIEVAL_FETCH_K` and
+`RETRIEVAL_LAMBDA_MULT` are ignored.
 
 ## Metrics
 
@@ -35,6 +59,8 @@ Effective `top_k`: `7`
 - `mrr`: mean reciprocal rank across all cases.
 - `expected_source_coverage`: `expected_source_hit_count / expected_source_total`.
 - `average_expected_source_coverage`: mean expected source coverage across all cases.
+- `average_unique_source_count`: mean number of distinct source paths per case.
+- `average_duplicate_source_count`: mean number of duplicate source paths per case.
 
 This baseline uses the existing evaluator and case file:
 
@@ -51,14 +77,19 @@ This baseline uses the existing evaluator and case file:
 | Source hit rate | 1.000 |
 | MRR | 0.909 |
 | Average expected source coverage | 1.000 |
+| Average unique source count | 2.545 |
+| Average duplicate source count | 4.455 |
 
 Baseline result:
 
 ```text
+retrieval_config: search_type=similarity top_k=7 fetch_k=None lambda_mult=None
 summary: 11/11 passed
 source_hit_rate: 1.000
 mrr: 0.909
 average_expected_source_coverage: 1.000
+average_unique_source_count: 2.545
+average_duplicate_source_count: 4.455
 ```
 
 ## Case Results
@@ -107,11 +138,89 @@ Interpretation:
 2. `top_k=3` does reduce coverage because the `match="all"` comparison case needs both `llamaindex` and `langchain`, but only LlamaIndex-related sources appear in the top 3.
 3. This shows why MRR alone is insufficient for this project: it rewards the first relevant hit, but it does not tell whether all required sources were retrieved.
 
-## Recommended Next Step
+## MMR Comparison - 2026-06-06
+
+The retrieval evaluator now supports explicit retrieval strategy parameters:
+
+```bash
+conda run -n AI_DEV python -m rag_app.scripts.evaluate_retrieval \
+  --top-k 7 \
+  --search-type similarity
+
+conda run -n AI_DEV python -m rag_app.scripts.evaluate_retrieval \
+  --top-k 7 \
+  --search-type mmr \
+  --fetch-k 50 \
+  --lambda-mult 0.3
+```
+
+Formal comparison:
+
+| Strategy | Passed | Source hit rate | MRR | Average expected source coverage | Average unique source count | Average duplicate source count |
+|---|---:|---:|---:|---:|---:|---:|
+| `similarity top_k=7` | 11/11 | 1.000 | 0.909 | 1.000 | 2.545 | 4.455 |
+| `mmr top_k=7 fetch_k=50 lambda=0.3` | 11/11 | 1.000 | 0.909 | 1.000 | 3.818 | 3.182 |
+
+Interpretation:
+
+1. MMR with `fetch_k=50` and `lambda_mult=0.3` preserves the core retrieval quality metrics on the current 11-case set.
+2. The same MMR setting increases average unique source count from `2.545` to `3.818`, which is direct evidence that it reduces duplicate source concentration.
+3. Earlier exploratory runs showed that higher `lambda_mult` values can fail Qdrant cases, so MMR is parameter-sensitive and should not be enabled without fixed evaluation coverage.
+
+## Answer-level MMR Check - 2026-06-06
+
+The answer-level evaluator now also accepts retrieval strategy parameters:
+
+```bash
+conda run -n AI_DEV python -m rag_app.scripts.evaluate_answers_with_judge \
+  --top-k 7 \
+  --search-type mmr \
+  --fetch-k 50 \
+  --lambda-mult 0.3
+```
+
+Valid answer-level comparison:
+
+| Strategy | Judge report | Passed | Failed |
+|---|---|---:|---:|
+| `similarity top_k=7` | `rag/experiments/judge_runs/20260606-004310.json` | 11/11 | 0 |
+| `mmr top_k=7 fetch_k=50 lambda=0.3` | `rag/experiments/judge_runs/20260606-111842.json` | 11/11 | 0 |
+
+There was one invalid MMR judge run while Qdrant was unavailable:
+`rag/experiments/judge_runs/20260606-110726.json`. It returned fallback answers
+because retrieval failed with Qdrant `502` responses, so it is not used as a
+retrieval-strategy comparison.
+
+Interpretation:
+
+1. MMR preserved answer-level judge quality on the current 11-case set.
+2. The answer-level result removes the main blocker to considering MMR as the default retrieval strategy.
+3. Before changing the default, one live `/ask` smoke comparison should still be run for the main comparison question, because LLM-as-Judge is helpful but not a complete substitute for inspecting the returned sources and trace.
+
+## Live Ask Smoke Comparison - 2026-06-06
+
+Question:
+
+```text
+LangChain 和 LlamaIndex 分别适合做什么？
+```
+
+| Strategy | Retrieval status | Retrieved source count | Unique retrieved sources | Observation |
+|---|---|---:|---:|---|
+| `similarity top_k=7` | completed | 7 | 3 | Answer covered both frameworks; sources contained repeated LlamaIndex documents plus one LangChain source. |
+| `mmr top_k=7 fetch_k=50 lambda=0.3` | completed | 7 | 6 | Answer covered both frameworks; sources were more diverse, with both LangChain and LlamaIndex present. |
+
+The MMR smoke result supports moving forward, but it also shows the trade-off:
+MMR can introduce broader contextual sources while improving source diversity.
+That is acceptable for this case, but it is why the default switch should remain
+configuration-controlled and reversible.
+
+## Implementation Result
 
 Keep `top_k=7` for now. The current evidence does not support reducing retrieval
 context to `top_k=3`.
 
-The next retrieval optimization should focus on reducing repeated sources and
-improving diversity while preserving expected source coverage. A reasonable next
-experiment is MMR or source-diversified reranking, measured against this baseline.
+The default retrieval strategy has been switched to configuration-controlled
+MMR instead of hardcoding MMR directly. This keeps the current best candidate
+enabled by default while preserving a quick fallback to similarity if a future
+case regresses.

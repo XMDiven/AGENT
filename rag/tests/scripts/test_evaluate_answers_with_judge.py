@@ -50,6 +50,62 @@ def test_evaluate_case_records_judge_result(monkeypatch) -> None:
     assert result["total_duration_seconds"] >= 0
 
 
+def test_evaluate_case_passes_retrieval_options_to_ask_question(
+    monkeypatch,
+) -> None:
+    case = DummyCase(id="qdrant_usage", question="What is Qdrant used for?")
+    calls = []
+
+    def fake_ask_question(question, **kwargs):
+        calls.append(
+            {
+                "question": question,
+                **kwargs,
+            }
+        )
+        return {
+            "answer": "Qdrant is used for vector search.",
+            "sources": [],
+        }
+
+    monkeypatch.setattr(
+        evaluate_answers_with_judge,
+        "ask_question",
+        fake_ask_question,
+    )
+    monkeypatch.setattr(
+        evaluate_answers_with_judge,
+        "judge_answer",
+        lambda question, answer, sources, llm: AnswerJudgeResult(
+            relevance_score=5,
+            completeness_score=4,
+            groundedness_score=5,
+            format_score=4,
+            overall_pass=True,
+            feedback="good answer",
+        ),
+    )
+
+    evaluate_answers_with_judge.evaluate_case(
+        case,
+        llm=object(),
+        top_k=7,
+        search_type="mmr",
+        fetch_k=50,
+        lambda_mult=0.3,
+    )
+
+    assert calls == [
+        {
+            "question": "What is Qdrant used for?",
+            "top_k": 7,
+            "search_type": "mmr",
+            "fetch_k": 50,
+            "lambda_mult": 0.3,
+        }
+    ]
+
+
 def test_evaluate_case_records_failure_when_judge_raises(monkeypatch) -> None:
     case = DummyCase(id="qdrant_usage", question="What is Qdrant used for?")
 
@@ -172,6 +228,67 @@ def test_run_evaluation_uses_custom_cases(monkeypatch) -> None:
     assert summary["passed"] == 1
     assert summary["cases"][0]["id"] == "custom_case"
     assert summary["cases"][0]["question"] == "Custom question?"
+
+
+def test_run_evaluation_records_retrieval_config(monkeypatch) -> None:
+    cases = [
+        DummyCase(id="case_one", question="Question one?"),
+    ]
+    calls = []
+
+    monkeypatch.setattr(
+        evaluate_answers_with_judge,
+        "load_case",
+        lambda: cases,
+    )
+    monkeypatch.setattr(
+        evaluate_answers_with_judge,
+        "get_client",
+        lambda: object(),
+    )
+
+    def fake_evaluate_case(case, llm, **kwargs):
+        calls.append(kwargs)
+        return {
+            "id": case.id,
+            "question": case.question,
+            "answer": "answer",
+            "sources": [],
+            "judge": {},
+            "passed": True,
+            "failures": [],
+            "answer_duration_seconds": 1.0,
+            "judge_duration_seconds": 2.0,
+            "total_duration_seconds": 3.0,
+        }
+
+    monkeypatch.setattr(
+        evaluate_answers_with_judge,
+        "evaluate_case",
+        fake_evaluate_case,
+    )
+
+    summary = evaluate_answers_with_judge.run_evaluation(
+        top_k=7,
+        search_type="mmr",
+        fetch_k=50,
+        lambda_mult=0.3,
+    )
+
+    assert calls == [
+        {
+            "top_k": 7,
+            "search_type": "mmr",
+            "fetch_k": 50,
+            "lambda_mult": 0.3,
+        }
+    ]
+    assert summary["retrieval_config"] == {
+        "top_k": 7,
+        "search_type": "mmr",
+        "fetch_k": 50,
+        "lambda_mult": 0.3,
+    }
 
 
 def test_run_evaluation_applies_case_limit_to_custom_cases(monkeypatch) -> None:

@@ -11,6 +11,11 @@ dotenv.load_dotenv(PROJECT_ROOT / ".env")
 CHUNK_SIZE: int = 800
 CHUNK_OVERLAP: int = 100
 RETRIEVAL_TOP_K: int = int(os.getenv("RETRIEVAL_TOP_K", "7"))
+RETRIEVAL_SEARCH_TYPE: str = os.getenv("RETRIEVAL_SEARCH_TYPE", "mmr")
+RETRIEVAL_FETCH_K: int = int(os.getenv("RETRIEVAL_FETCH_K", "50"))
+RETRIEVAL_LAMBDA_MULT: float = float(
+    os.getenv("RETRIEVAL_LAMBDA_MULT", "0.3")
+)
 
 COLLECTION_NAME: str | None = os.getenv("QDRANT_COLLECTION")
 

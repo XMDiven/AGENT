@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -8,7 +9,11 @@ from typing import Any
 from langchain_core.documents import Document
 
 from rag_app.config import config
-from rag_app.retrieval.retriever import get_retriever
+from rag_app.retrieval.retriever import (
+    RetrievalSearchType,
+    build_search_kwargs,
+    get_retriever,
+)
 
 DEFAULT_CASES_PATH = config.PROJECT_ROOT / "experiments" / "retrieval_eval_cases.json"
 
@@ -163,13 +168,31 @@ def evaluate_case(
         "passed": passed,
         "expected_source_contains": case.expected_source_contains,
         "retrieved_sources": sources,
+        "unique_source_count": len(set(sources)),
+        "duplicate_source_count": len(sources) - len(set(sources)),
         "source_metrics": source_metrics,
     }
 
 
-def run_evaluation() -> dict[str, Any]:
+def run_evaluation(
+    top_k: int | None = None,
+    search_type: RetrievalSearchType | None = None,
+    fetch_k: int | None = None,
+    lambda_mult: float | None = None,
+) -> dict[str, Any]:
     cases = load_case()
-    retriever = get_retriever()
+    effective_search_type, search_kwargs = build_search_kwargs(
+        top_k=top_k,
+        search_type=search_type,
+        fetch_k=fetch_k,
+        lambda_mult=lambda_mult,
+    )
+    retriever = get_retriever(
+        top_k=top_k,
+        search_type=search_type,
+        fetch_k=fetch_k,
+        lambda_mult=lambda_mult,
+    )
     case_results = []
 
     for case in cases:
@@ -207,7 +230,31 @@ def run_evaluation() -> dict[str, Any]:
         if total_count
         else 0.0
     )
+    average_unique_source_count = (
+        round(
+            sum(result["unique_source_count"] for result in case_results)
+            / total_count,
+            3,
+        )
+        if total_count
+        else 0.0
+    )
+    average_duplicate_source_count = (
+        round(
+            sum(result["duplicate_source_count"] for result in case_results)
+            / total_count,
+            3,
+        )
+        if total_count
+        else 0.0
+    )
 
+    print(
+        "retrieval_config: "
+        f"search_type={effective_search_type} top_k={search_kwargs['k']} "
+        f"fetch_k={search_kwargs.get('fetch_k')} "
+        f"lambda_mult={search_kwargs.get('lambda_mult')}"
+    )
     print(f"summary: {passed_count}/{total_count} passed")
     print(f"source_hit_rate: {source_hit_rate:.3f}")
     print(f"mrr: {mrr:.3f}")
@@ -215,19 +262,70 @@ def run_evaluation() -> dict[str, Any]:
         "average_expected_source_coverage: "
         f"{average_expected_source_coverage:.3f}"
     )
+    print(f"average_unique_source_count: {average_unique_source_count:.3f}")
+    print(
+        "average_duplicate_source_count: "
+        f"{average_duplicate_source_count:.3f}"
+    )
 
     return {
         "passed": passed_count,
         "total": total_count,
+        "retrieval_config": {
+            "top_k": search_kwargs["k"],
+            "search_type": effective_search_type,
+            "fetch_k": search_kwargs.get("fetch_k"),
+            "lambda_mult": search_kwargs.get("lambda_mult"),
+        },
         "source_hit_rate": source_hit_rate,
         "mrr": mrr,
         "average_expected_source_coverage": average_expected_source_coverage,
+        "average_unique_source_count": average_unique_source_count,
+        "average_duplicate_source_count": average_duplicate_source_count,
         "cases": case_results,
     }
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Evaluate retrieval source-hit and ranking metrics.",
+    )
+    parser.add_argument(
+        "--top-k",
+        type=int,
+        default=None,
+        help="Number of documents to return. Defaults to RETRIEVAL_TOP_K.",
+    )
+    parser.add_argument(
+        "--search-type",
+        choices=["similarity", "mmr"],
+        default=None,
+        help="Retriever search strategy. Defaults to RETRIEVAL_SEARCH_TYPE.",
+    )
+    parser.add_argument(
+        "--fetch-k",
+        type=int,
+        default=None,
+        help="MMR candidate pool size.",
+    )
+    parser.add_argument(
+        "--lambda-mult",
+        type=float,
+        default=None,
+        help="MMR relevance/diversity balance.",
+    )
+
+    return parser.parse_args()
+
+
 def main() -> None:
-    summary = run_evaluation()
+    args = parse_args()
+    summary = run_evaluation(
+        top_k=args.top_k,
+        search_type=args.search_type,
+        fetch_k=args.fetch_k,
+        lambda_mult=args.lambda_mult,
+    )
 
     if summary["passed"] != summary["total"]:
         raise SystemExit(1)

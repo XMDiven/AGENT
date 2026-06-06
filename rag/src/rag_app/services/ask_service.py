@@ -13,7 +13,7 @@ from rag_app.generation.qa_prompt import get_qa_prompt
 from rag_app.infrastructure.llm_client import get_client
 from rag_app.infrastructure.resources import AppResources
 from rag_app.retrieval.query_analyzer import analyze_query
-from rag_app.retrieval.retriever import get_retriever
+from rag_app.retrieval.retriever import RetrievalSearchType, get_retriever
 from rag_app.retrieval.retrieval_planner import RetrievalPlan, plan_retrieval
 
 logger = logging.getLogger(__name__)
@@ -130,10 +130,28 @@ def build_retrieval_trace_detail(
     return detail
 
 
+def apply_top_k_override(
+    retrieval_plan: RetrievalPlan,
+    top_k: int | None,
+) -> RetrievalPlan:
+    if top_k is None or retrieval_plan.top_k == 0:
+        return retrieval_plan
+
+    return RetrievalPlan(
+        retrieval_strategy=retrieval_plan.retrieval_strategy,
+        retrieval_query=retrieval_plan.retrieval_query,
+        top_k=top_k,
+        reason=retrieval_plan.reason,
+    )
+
+
 def retrieve_documents_with_retry(
     retrieval_plan: RetrievalPlan,
     trace: list[dict[str, Any]],
     resources: AppResources | None = None,
+    search_type: RetrievalSearchType | None = None,
+    fetch_k: int | None = None,
+    lambda_mult: float | None = None,
 ) -> list[Document]:
     max_attempts = config.MAX_RETRIEVAL_RETRY + 1
     last_error: Exception | None = None
@@ -143,13 +161,28 @@ def retrieve_documents_with_retry(
         retrieval_start = perf_counter()
 
         try:
-            if resources is None:
-                retriever = get_retriever(top_k=retrieval_plan.top_k)
-            else:
-                retriever = get_retriever(
-                    top_k=retrieval_plan.top_k,
-                    vector_store=resources.vector_store,
+            retriever_kwargs: dict[str, Any] = {
+                "top_k": retrieval_plan.top_k,
+            }
+
+            if (
+                search_type is not None
+                or fetch_k is not None
+                or lambda_mult is not None
+            ):
+                retriever_kwargs.update(
+                    {
+                        "search_type": search_type,
+                        "fetch_k": fetch_k,
+                        "lambda_mult": lambda_mult,
+                    }
                 )
+
+            if resources is None:
+                retriever = get_retriever(**retriever_kwargs)
+            else:
+                retriever_kwargs["vector_store"] = resources.vector_store
+                retriever = get_retriever(**retriever_kwargs)
             documents = retriever.invoke(retrieval_plan.retrieval_query)
         except Exception as exc:
             last_error = exc
@@ -243,6 +276,10 @@ def retrieve_documents_with_retry(
 def ask_question(
     question: str,
     resources: AppResources | None = None,
+    top_k: int | None = None,
+    search_type: RetrievalSearchType | None = None,
+    fetch_k: int | None = None,
+    lambda_mult: float | None = None,
 ) -> dict[str, Any]:
     trace: list[dict[str, Any]] = []
     analysis = analyze_query(question)
@@ -260,7 +297,10 @@ def ask_question(
         )
     )
 
-    retrieval_plan = plan_retrieval(analysis)
+    retrieval_plan = apply_top_k_override(
+        retrieval_plan=plan_retrieval(analysis),
+        top_k=top_k,
+    )
 
     trace.append(
         build_trace_item(
@@ -299,6 +339,9 @@ def ask_question(
         retrieval_plan=retrieval_plan,
         trace=trace,
         resources=resources,
+        search_type=search_type,
+        fetch_k=fetch_k,
+        lambda_mult=lambda_mult,
     )
 
     if not documents:
@@ -417,6 +460,10 @@ def ask_question(
 def stream_ask_question(
     question: str,
     resources: AppResources | None = None,
+    top_k: int | None = None,
+    search_type: RetrievalSearchType | None = None,
+    fetch_k: int | None = None,
+    lambda_mult: float | None = None,
 ) -> Iterator[dict[str, Any]]:
     trace: list[dict[str, Any]] = []
     analysis = analyze_query(question)
@@ -434,7 +481,10 @@ def stream_ask_question(
         )
     )
 
-    retrieval_plan = plan_retrieval(analysis)
+    retrieval_plan = apply_top_k_override(
+        retrieval_plan=plan_retrieval(analysis),
+        top_k=top_k,
+    )
 
     trace.append(
         build_trace_item(
@@ -474,6 +524,9 @@ def stream_ask_question(
         retrieval_plan=retrieval_plan,
         trace=trace,
         resources=resources,
+        search_type=search_type,
+        fetch_k=fetch_k,
+        lambda_mult=lambda_mult,
     )
 
     if not documents:

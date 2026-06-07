@@ -72,7 +72,7 @@ AI 应用开发 / LLM Engineering 实习通常考察：
 | 0.3 | 统一流式/非流式检索重试 + 客户端复用 | 地基 | 部分 | [x] | 2026-06-04 |
 | 1.1 | 真实 Function Calling 的 Agent | 深度 | 是 | [x] | 2026-06-04 |
 | 1.2 | 可量化的检索质量优化 | 深度 | 是 | [x] | 2026-06-07 |
-| 1.3 | 用真工具替换 summary/web_search 桩 | 深度 | 是 | [ ] | |
+| 1.3 | 用真工具替换 summary 桩（web_search 经决策不做） | 深度 | 是 | [x] | 2026-06-07 |
 | 2.1 | 扩评测样本并留运行记录 | 规模 | 是 | [ ] | |
 | 2.2 | app 加 Dockerfile + pydantic-settings | 规模 | 否 | [ ] | |
 
@@ -112,7 +112,7 @@ AI 应用开发 / LLM Engineering 实习通常考察：
 
 ### C 档：声称有、实际很薄（命名与实现风险）
 
-- **`summary_tool` 不是摘要**：`summary.py` 是 `text[:200]` 截断。（→任务 1.3）
+- ~~**`summary_tool` 不是摘要**：`summary.py` 是 `text[:200]` 截断。（→任务 1.3）~~ 已于 2026-06-07 改为真 LLM 摘要（`agent/src/agent_app/tools/summary.py`：调 LLM、空输出兜底、长度上限；`executor.py` 像 retrieval 一样捕获失败落 `status=failed` 进 trace），含成功/空/截断/失败单测。`web_search_tool` 经用户决策不做。
 - **`question_decompose` 极脆**：只有 `"分别"` 一个可靠切分模式，否则原样返回（`question_decompose.py:62-66`）。（→任务 1.1 改造后弱化）
 - ~~**planner 是关键词 if/else**：`planner.py:13-35`，无 LLM、无 function calling。（→任务 1.1）~~ 已于 2026-06-04 修复：`plan_tool` 走 LLM native function calling（`tool_selector.py` 用 `bind_tools` + `tool_choice="auto"`）选工具并填参，规则式 `plan_tool_by_rules` 降为 fallback；真实模型已验证能返回 `tool_calls`，`/agent/run` trace 能看到 `tool_args`。
 - **chunking 只有两种**：Markdown=header+Recursive、PDF=Recursive；**代码中未发现** fixed-size 抽象或 semantic chunker。
@@ -190,6 +190,7 @@ AI 应用开发 / LLM Engineering 实习通常考察：
 - 验收命令：`cd agent && conda run -n AI_DEV pytest tests/ -q` + 每工具的成功/失败单测。
 - 完成信号：trace 能看到工具名与状态；失败路径有测试覆盖。
 - 不做：没有失败处理和测试，不接外部 API。
+- 完成记录（2026-06-07）：`summary_tool` 已换成真 LLM 摘要（`agent/src/agent_app/tools/summary.py`，空输出兜底 + 长度上限 + 失败 raise；`executor` 失败落 `status=failed` 进 trace），`cd agent && conda run -n AI_DEV pytest tests/ -q` → 47 passed。**`web_search_tool` 经用户决策不做**，故 1.3 收口为「仅真 summary 工具」。
 
 ### P2 — 规模与收尾
 

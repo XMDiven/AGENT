@@ -73,7 +73,7 @@ AI 应用开发 / LLM Engineering 实习通常考察：
 | 1.1 | 真实 Function Calling 的 Agent | 深度 | 是 | [x] | 2026-06-04 |
 | 1.2 | 可量化的检索质量优化 | 深度 | 是 | [x] | 2026-06-07 |
 | 1.3 | 用真工具替换 summary 桩（web_search 经决策不做） | 深度 | 是 | [x] | 2026-06-07 |
-| 2.1 | 扩评测样本并留运行记录 | 规模 | 是 | [ ] | |
+| 2.1 | 扩评测样本并留运行记录 | 规模 | 是 | [x] | 2026-06-07 |
 | 2.2 | app 加 Dockerfile + pydantic-settings | 规模 | 否 | [ ] | |
 
 ---
@@ -117,7 +117,7 @@ AI 应用开发 / LLM Engineering 实习通常考察：
 - ~~**planner 是关键词 if/else**：`planner.py:13-35`，无 LLM、无 function calling。（→任务 1.1）~~ 已于 2026-06-04 修复：`plan_tool` 走 LLM native function calling（`tool_selector.py` 用 `bind_tools` + `tool_choice="auto"`）选工具并填参，规则式 `plan_tool_by_rules` 降为 fallback；真实模型已验证能返回 `tool_calls`，`/agent/run` trace 能看到 `tool_args`。
 - **chunking 只有两种**：Markdown=header+Recursive、PDF=Recursive；**代码中未发现** fixed-size 抽象或 semantic chunker。
 - ~~**检索只是 plain similarity top-k**：`retriever.py:9-12`，无 rerank/hybrid/MMR/filter。（→任务 1.2）~~ 已于 2026-06-07 处理：检索策略改为配置控制（`RETRIEVAL_SEARCH_TYPE`），新增 MMR 支持并用扩到 27 条（含 3 条实测难例）的 golden set 评测；结果显示 MMR 在每个 λ 都回归 MRR（similarity 0.901 vs mmr 0.892@λ0.3，λ≥0.5 连 hit_rate/coverage 也降）、唯一收益是多样性且 judge 无提升，故**默认保留 similarity**，MMR 作为可配置 opt-in。详见 `rag/experiments/retrieval_baseline_2026-06-05.md`。
-- **评测样本极小**：11 golden cases、2 prompt 版本、3 个 judge run。（→任务 2.1）
+- ~~**评测样本极小**：11 golden cases、2 prompt 版本、3 个 judge run。（→任务 2.1）~~ 已于 2026-06-07 扩充并留运行记录：retrieval golden set 扩到 27 条（含 3 条实测 hard cases），answer-level judge run `rag/experiments/judge_runs/20260607-201409.json` 覆盖 27 条并 27/27 passed；平均耗时 answer 35.67s、judge 44.24s、total 79.91s。
 
 ### 最严重的工程问题（按对生产质量影响排序）
 1. ~~async 路由跑阻塞 I/O（并发正确性）→任务 0.2~~ 已修复，2026-06-04
@@ -198,6 +198,7 @@ AI 应用开发 / LLM Engineering 实习通常考察：
 - 做什么：真实扩 golden set / prompt 对比组，保存每次 judge run，统计组数/样本数/耗时。
 - 验收命令：`cd rag && conda run -n AI_DEV python -m rag_app.scripts.evaluate_answers_with_judge`。
 - 完成信号：新增 case 有来源说明 + `experiments/judge_runs/` 新记录。
+- 完成记录（2026-06-07）：`retrieval_eval_cases.json` 已从 11 扩到 27 条，并在 `rag/experiments/retrieval_baseline_2026-06-05.md` 记录 similarity vs MMR λ sweep；answer-level judge 最新 run `rag/experiments/judge_runs/20260607-201409.json` 覆盖 27 条 default cases，`similarity top_k=7` 下 27/27 passed，平均 answer=35.67s、judge=44.24s、total=79.91s。
 
 **任务 2.2 · app 加 Dockerfile + pydantic-settings（S–M，纯代码）**
 - 做什么：为 RAG/Agent 各加 Dockerfile；配置集中到 `pydantic-settings`（替代散落 `os.getenv` + 重复 `load_dotenv`）。

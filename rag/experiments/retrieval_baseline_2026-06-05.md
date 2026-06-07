@@ -294,3 +294,36 @@ Revert the default `RETRIEVAL_SEARCH_TYPE` to `similarity` (`config.py`,
 `.env.example`). MMR stays fully supported and opt-in via configuration for
 workloads that explicitly want diversity. Lesson: do not change a production
 default on evidence from a set that cannot see the cost.
+
+## Answer-level Judge on Expanded 27-case Set - 2026-06-07
+
+Command:
+
+```bash
+conda run --no-capture-output -n AI_DEV python -u -m rag_app.scripts.evaluate_answers_with_judge
+```
+
+Report: `rag/experiments/judge_runs/20260607-201409.json`
+
+| Metric | Value |
+|---|---:|
+| Cases | 27 |
+| Passed | 27 |
+| Failed | 0 |
+| Judge pass rate | 1.000 |
+| Retrieval config | `similarity`, `top_k=7` |
+| Average answer duration | 35.67s |
+| Average judge duration | 44.24s |
+| Average total duration | 79.91s |
+
+Interpretation:
+
+1. The answer-level judge now covers the same expanded 27-case default set used
+   for retrieval experiments, including the measured hard cases.
+2. With the default `similarity` strategy at `top_k=7`, all 27 answers passed
+   the judge. This supports keeping similarity as the default after the MMR
+   sweep.
+3. Runtime is dominated by model calls: answer generation plus judging averages
+   79.91s per case. Future eval speed work should focus on workflow controls
+   such as partial runs, targeted case selection, or cheaper judge settings
+   before spending more effort on retriever/client reuse.

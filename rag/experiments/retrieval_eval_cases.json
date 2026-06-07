@@ -58,5 +58,97 @@
     "question": "LangChain 和 LlamaIndex 分别适合做什么？",
     "expected_source_contains": ["langchain", "llamaindex"],
     "match": "all"
+  },
+  {
+    "id": "corrective_rag_definition",
+    "question": "In Corrective RAG (CRAG), what does the retrieval evaluator do when retrieved documents are judged incorrect or ambiguous?",
+    "expected_source_contains": ["corrective-retrieval-augmented-generation"]
+  },
+  {
+    "id": "self_rag_reflection_tokens",
+    "question": "How does Self-RAG use reflection tokens to decide when to retrieve and to critique its own generations?",
+    "expected_source_contains": ["self-rag"]
+  },
+  {
+    "id": "atlas_retrieval_few_shot",
+    "question": "How does the Atlas model achieve strong few-shot performance with a retrieval-augmented architecture?",
+    "expected_source_contains": ["atlas-few-shot-learning-with"]
+  },
+  {
+    "id": "react_reasoning_acting",
+    "question": "What does the ReAct paper propose for interleaving reasoning traces with task actions?",
+    "expected_source_contains": ["react-reasoning-acting"]
+  },
+  {
+    "id": "toolformer_self_supervised_api",
+    "question": "How does Toolformer learn in a self-supervised way which API to call and when?",
+    "expected_source_contains": ["toolformer"]
+  },
+  {
+    "id": "autogen_multi_agent",
+    "question": "What multi-agent conversation framework does the AutoGen paper introduce for building LLM applications?",
+    "expected_source_contains": ["autogen-enabling-next-gen-llm"]
+  },
+  {
+    "id": "cot_original_prompting",
+    "question": "What is chain-of-thought prompting as originally introduced, where intermediate reasoning steps are added to few-shot exemplars?",
+    "expected_source_contains": [
+      "chain_of_thought_prompting_elicits_reasoning_in_large_language_models"
+    ]
+  },
+  {
+    "id": "instructgpt_rlhf",
+    "question": "How does InstructGPT use reinforcement learning from human feedback to make models follow instructions?",
+    "expected_source_contains": [
+      "training_language_models_to_follow_instructions_with_human_feedback_instructgpt"
+    ]
+  },
+  {
+    "id": "scaling_laws_relationship",
+    "question": "What relationship between model size, dataset size, and compute do the neural language model scaling laws describe?",
+    "expected_source_contains": ["scaling_laws_for_neural_language_models"]
+  },
+  {
+    "id": "llama3_herd_scale",
+    "question": "What does the Llama 3 herd of models report about its largest dense model and training scale?",
+    "expected_source_contains": ["llama3_the_herd_of_models"]
+  },
+  {
+    "id": "peft_library_quantization",
+    "question": "What does the Hugging Face PEFT library documentation describe about training quantized models with adapters?",
+    "expected_source_contains": ["peft__hugging-face-peft__quantization.md"]
+  },
+  {
+    "id": "lora_qlora_compare",
+    "question": "Compare the low-rank adaptation idea in LoRA with how QLoRA extends it to quantized finetuning.",
+    "expected_source_contains": [
+      "lora_low_rank_adaptation_of_large_language_models.pdf",
+      "qlora_efficient_finetuning_of_quantized_llms.pdf"
+    ],
+    "match": "all"
+  },
+  {
+    "id": "cot_self_consistency_pair",
+    "question": "How does self-consistency build on chain-of-thought prompting to improve reasoning?",
+    "expected_source_contains": [
+      "chain_of_thought_prompting_elicits_reasoning_in_large_language_models.pdf",
+      "self_consistency_improves_chain_of_thought_reasoning_in_language_models.pdf"
+    ],
+    "match": "all"
+  },
+  {
+    "id": "hard_lora_frozen_lowrank",
+    "question": "What technique freezes the pretrained weights and injects small trainable low-rank matrices into each layer?",
+    "expected_source_contains": ["lora_low_rank_adaptation_of_large_language_models.pdf"]
+  },
+  {
+    "id": "hard_selfrag_critique",
+    "question": "How can a language model critique its own output and decide on the fly whether it needs to retrieve more context?",
+    "expected_source_contains": ["self-rag"]
+  },
+  {
+    "id": "hard_instructgpt_reward_ppo",
+    "question": "What alignment method trains a reward model from human preference comparisons and then optimizes the policy with PPO?",
+    "expected_source_contains": ["instructgpt"]
   }
 ]

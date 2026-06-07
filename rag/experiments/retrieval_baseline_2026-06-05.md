@@ -217,6 +217,10 @@ configuration-controlled and reversible.
 
 ## Implementation Result
 
+> **Superseded by "Revision — Expanded Golden Set & MMR Reversal" below.** The
+> MMR-as-default decision was made on the saturated 11-case set; a harder set
+> reverses it.
+
 Keep `top_k=7` for now. The current evidence does not support reducing retrieval
 context to `top_k=3`.
 
@@ -224,3 +228,68 @@ The default retrieval strategy has been switched to configuration-controlled
 MMR instead of hardcoding MMR directly. This keeps the current best candidate
 enabled by default while preserving a quick fallback to similarity if a future
 case regresses.
+
+## Revision — Expanded Golden Set & MMR Reversal — 2026-06-07
+
+### Why revisit
+
+The conclusions above were drawn on the original 11-case set, which is
+*saturated*: source hit rate, coverage, and MRR were all at or near ceiling, so
+"MMR ≈ similarity" could not be trusted — the set simply could not tell the two
+strategies apart.
+
+### Harder golden set
+
+Expanded `retrieval_eval_cases.json` from 11 to 27 cases:
+
+- 13 cases broaden topic coverage across the indexed corpus (CRAG, Self-RAG,
+  Atlas, ReAct, Toolformer, AutoGen, original chain-of-thought, InstructGPT,
+  scaling laws, Llama 3, PEFT quantization, plus two `match="all"` multi-source
+  cases).
+- 3 `hard_*` cases were found by measurement, not by guessing.
+
+Method note: questions that name a distinctive method/term (e.g. "PagedAttention",
+"Toolformer", "reflection tokens") are retrieved at rank 1 even amid sibling
+documents — the embedding model is strong on this corpus. Hard cases only appear
+when the question is paraphrased into shared vocabulary, and even then the yield
+was ~3 in 20 probes. The 3 retained hard cases each have a sibling doc that
+outranks the correct source under similarity:
+
+- `hard_lora_frozen_lowrank`: peft `lora-methods.md` outranks the LoRA paper (rank 2)
+- `hard_selfrag_critique`: the self-consistency paper outranks Self-RAG (rank 3)
+- `hard_instructgpt_reward_ppo`: Llama 2 outranks InstructGPT (rank 2)
+
+### similarity vs MMR on the 27-case set (top_k=7)
+
+| Strategy | hit_rate | MRR | coverage | avg unique src | avg dup src |
+|---|---:|---:|---:|---:|---:|
+| `similarity` | 1.000 | **0.901** | 1.000 | 2.26 | 4.74 |
+| `mmr λ=0.3` | 1.000 | 0.892 | 1.000 | 3.15 | 3.85 |
+| `mmr λ=0.5` | 0.926 | 0.859 | 0.907 | 3.63 | 3.37 |
+| `mmr λ=0.7` | 0.889 | 0.870 | 0.889 | 3.78 | 3.22 |
+| `mmr λ=1.0` | 0.889 | 0.870 | 0.889 | 4.04 | 2.96 |
+
+At `top_k=3`, similarity MRR stays 0.901 while `mmr λ=0.3` drops to 0.883, and
+two `match="all"` cases (`langchain_llamaindex_comparison`,
+`cot_self_consistency_pair`) lose coverage under both strategies (n=27).
+
+### Finding
+
+1. On a set that can actually discriminate, MMR **regresses relevance**: every
+   MMR setting lowers MRR vs similarity, and λ≥0.5 also lowers hit rate and
+   coverage. MMR never improved any case's rank; at λ=0.3 it only pushed two
+   hard cases lower (`hard_selfrag` 3→4, `hard_instructgpt` 2→3).
+2. MMR's only gain is source diversity (unique-source count rises), but the
+   earlier answer-level judge run was 11/11 either way, so that diversity did
+   not translate into better answers on this set.
+3. Caveat: the λ sweep was not monotonic (λ=1.0 did not collapse to similarity,
+   and unique-source count rose with λ). The langchain-qdrant MMR `lambda_mult`
+   behavior deserves a closer look, but it does not change the decision —
+   similarity dominates on relevance at every λ tested.
+
+### Decision
+
+Revert the default `RETRIEVAL_SEARCH_TYPE` to `similarity` (`config.py`,
+`.env.example`). MMR stays fully supported and opt-in via configuration for
+workloads that explicitly want diversity. Lesson: do not change a production
+default on evidence from a set that cannot see the cost.

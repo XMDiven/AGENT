@@ -1,45 +1,40 @@
-# Retrieval Baseline - 2026-06-05
+# 检索基线报告 - 2026-06-05
 
-## Purpose
+## 目的
 
-This report records the baseline retrieval quality for task 1.2 after adding
-stricter retrieval metrics, then compares it with a configuration-controlled
-MMR retrieval strategy.
+本报告记录任务 1.2 的检索质量基线：先在加入更严格检索指标后固定当前表现，再与配置控制的 MMR 检索策略做对比。
 
-The original baseline was plain Qdrant similarity search with `top_k=7`.
-The current default retrieval strategy is now controlled by environment
-configuration and defaults to `similarity top_k=7`. MMR remains available as
-an opt-in strategy.
+原始基线是 Qdrant 的 plain similarity search，`top_k=7`。当前默认检索策略已经改为由环境变量控制，并默认使用 `similarity top_k=7`。MMR 仍然保留为可选策略。
 
-## Command
+## 运行命令
 
-Run from `/Users/mdiven/Code/Projects/AGENT/rag`:
+从 `/Users/mdiven/Code/Projects/AGENT/rag` 目录运行：
 
 ```bash
 conda run -n AI_DEV python -m rag_app.scripts.evaluate_retrieval
 ```
 
-## Original Baseline Retrieval Strategy
+## 原始基线检索策略
 
-Source: `rag/src/rag_app/retrieval/retriever.py`
+来源：`rag/src/rag_app/retrieval/retriever.py`
 
 ```python
 search_type="similarity"
 search_kwargs={"k": effective_top_k}
 ```
 
-Effective baseline `top_k`: `7`
+有效基线 `top_k`：`7`
 
-## Current Default Retrieval Strategy
+## 当前默认检索策略
 
-Source: `rag/src/rag_app/config/config.py`
+来源：`rag/src/rag_app/config/config.py`
 
 ```text
 RETRIEVAL_SEARCH_TYPE=similarity
 RETRIEVAL_TOP_K=7
 ```
 
-To run an MMR experiment, set:
+如果要运行 MMR 实验，设置：
 
 ```text
 RETRIEVAL_SEARCH_TYPE=mmr
@@ -47,30 +42,29 @@ RETRIEVAL_FETCH_K=50
 RETRIEVAL_LAMBDA_MULT=0.3
 ```
 
-When `RETRIEVAL_SEARCH_TYPE=similarity`, `RETRIEVAL_FETCH_K` and
-`RETRIEVAL_LAMBDA_MULT` are ignored.
+当 `RETRIEVAL_SEARCH_TYPE=similarity` 时，`RETRIEVAL_FETCH_K` 和 `RETRIEVAL_LAMBDA_MULT` 会被忽略。
 
-## Metrics
+## 指标定义
 
-- `source_hit`: a case passes when the retrieved sources satisfy the case match mode.
-- `all_source_hit`: for cases with `match="all"`, every expected source label must appear in the retrieved source list.
-- `source_hit_rate`: `passed_cases / total_cases`.
-- `first_hit_rank`: the 1-based rank of the first retrieved source matching any expected source label.
-- `reciprocal_rank`: `1 / first_hit_rank`, or `0` when no expected source is retrieved.
-- `mrr`: mean reciprocal rank across all cases.
-- `expected_source_coverage`: `expected_source_hit_count / expected_source_total`.
-- `average_expected_source_coverage`: mean expected source coverage across all cases.
-- `average_unique_source_count`: mean number of distinct source paths per case.
-- `average_duplicate_source_count`: mean number of duplicate source paths per case.
+- `source_hit`：当检索出的来源满足该 case 的匹配模式时，该 case 通过。
+- `all_source_hit`：对于 `match="all"` 的 case，所有期望 source label 都必须出现在检索 source 列表里。
+- `source_hit_rate`：`passed_cases / total_cases`。
+- `first_hit_rank`：第一个命中任一期望 source label 的检索结果排名，从 1 开始。
+- `reciprocal_rank`：`1 / first_hit_rank`；如果没有命中期望 source，则为 `0`。
+- `mrr`：所有 case 的 mean reciprocal rank。
+- `expected_source_coverage`：`expected_source_hit_count / expected_source_total`。
+- `average_expected_source_coverage`：所有 case 的 expected source coverage 平均值。
+- `average_unique_source_count`：每个 case 检索结果里不同 source path 数量的平均值。
+- `average_duplicate_source_count`：每个 case 检索结果里重复 source path 数量的平均值。
 
-This baseline uses the existing evaluator and case file:
+本基线使用现有 evaluator 和 case 文件：
 
-- Cases: `rag/experiments/retrieval_eval_cases.json`
-- Evaluator: `rag/src/rag_app/scripts/evaluate_retrieval.py`
+- Cases：`rag/experiments/retrieval_eval_cases.json`
+- Evaluator：`rag/src/rag_app/scripts/evaluate_retrieval.py`
 
-## Summary
+## 汇总
 
-| Metric | Value |
+| 指标 | 值 |
 |---|---:|
 | Total cases | 11 |
 | Passed cases | 11 |
@@ -81,7 +75,7 @@ This baseline uses the existing evaluator and case file:
 | Average unique source count | 2.545 |
 | Average duplicate source count | 4.455 |
 
-Baseline result:
+基线结果：
 
 ```text
 retrieval_config: search_type=similarity top_k=7 fetch_k=None lambda_mult=None
@@ -93,9 +87,9 @@ average_unique_source_count: 2.545
 average_duplicate_source_count: 4.455
 ```
 
-## Case Results
+## Case 结果
 
-| Case | Match | Result | First hit rank | Reciprocal rank | Expected hit count | Coverage | Expected source labels | Retrieved source evidence |
+| Case | 匹配模式 | 结果 | 首个命中排名 | Reciprocal rank | 期望命中数 | 覆盖率 | 期望 source label | 检索命中的 source 证据 |
 |---|---|---|---:|---:|---:|---:|---|---|
 | `gpt4_report_scope` | any | PASS | 1 | 1.000 | 1/1 | 1.000 | `gpt4_technical_report.pdf` | `data/raw/gpt4_technical_report.pdf` |
 | `qdrant_usage` | any | PASS | 2 | 0.500 | 1/1 | 1.000 | `qdrant-docs.md` | `data/raw/qdrant-docs.md` |
@@ -109,39 +103,37 @@ average_duplicate_source_count: 4.455
 | `rag_memory_paraphrase` | any | PASS | 1 | 1.000 | 1/1 | 1.000 | `retrieval_augmented_generation_for_knowledge_intensive_nlp.pdf` | `data/raw/retrieval_augmented_generation_for_knowledge_intensive_nlp.pdf` |
 | `langchain_llamaindex_comparison` | all | PASS | 1 | 1.000 | 2/2 | 1.000 | `langchain`, `llamaindex` | `data/raw/llamaindex-docs.md`, `data/raw/03-langchain-README.md` |
 
-## Observations
+## 观察
 
-1. The existing 11-case retrieval set is saturated for source-hit rate: all cases pass.
-2. MRR exposes ranking quality that source-hit rate hides. Two Qdrant cases only hit the expected `qdrant-docs.md` source at rank 2.
-3. Expected source coverage is also saturated at `1.000`, so it is useful as a regression guard rather than an improvement signal for the current case set.
-4. The comparison case still reveals a useful signal: LlamaIndex sources rank above the LangChain source, but both expected labels appear within top 7.
+1. 现有 11 条检索 case 对 source-hit rate 来说已经饱和：所有 case 都通过。
+2. MRR 能暴露 source-hit rate 掩盖的排序质量问题。两个 Qdrant case 直到 rank 2 才命中期望的 `qdrant-docs.md` source。
+3. Expected source coverage 也已经达到 `1.000`，所以它在当前 case set 里更适合作为回归保护指标，而不是改进信号。
+4. 多 source 对比 case 仍然提供了有用信号：LlamaIndex source 排在 LangChain source 前面，但两个期望 label 都出现在 top 7 内。
 
-## Top-k Comparison - 2026-06-06
+## Top-k 对比 - 2026-06-06
 
-This comparison keeps the same retriever strategy (`similarity`) and only changes
-the number of returned documents. It was run by calling `get_retriever(top_k=...)`
-directly, without changing `retriever.py` or project configuration.
+这次对比保持同一个 retriever 策略（`similarity`），只改变返回文档数量。运行方式是直接调用 `get_retriever(top_k=...)`，没有修改 `retriever.py` 或项目配置。
 
-| Top k | Passed | Source hit rate | MRR | Average expected source coverage |
+| Top k | 通过数 | Source hit rate | MRR | Average expected source coverage |
 |---:|---:|---:|---:|---:|
 | 7 | 11/11 | 1.000 | 0.909 | 1.000 |
 | 3 | 10/11 | 0.909 | 0.909 | 0.955 |
 
-`top_k=3` failed one case:
+`top_k=3` 失败了一个 case：
 
-| Case | Match | Expected hit count | Coverage | Top 3 retrieved sources |
+| Case | 匹配模式 | 期望命中数 | 覆盖率 | Top 3 检索 source |
 |---|---|---:|---:|---|
 | `langchain_llamaindex_comparison` | all | 1/2 | 0.500 | `data/raw/llamaindex-docs.md`, `data/raw/llamaindex-docs.md`, `data/raw/aiapp-03-llamaindex-readme.md` |
 
-Interpretation:
+解释：
 
-1. `top_k=3` does not reduce MRR because the first expected source is still at rank 1.
-2. `top_k=3` does reduce coverage because the `match="all"` comparison case needs both `llamaindex` and `langchain`, but only LlamaIndex-related sources appear in the top 3.
-3. This shows why MRR alone is insufficient for this project: it rewards the first relevant hit, but it does not tell whether all required sources were retrieved.
+1. `top_k=3` 没有降低 MRR，因为第一个期望 source 仍然在 rank 1。
+2. `top_k=3` 会降低 coverage，因为 `match="all"` 的对比 case 需要同时检索到 `llamaindex` 和 `langchain`，但 top 3 里只有 LlamaIndex 相关 source。
+3. 这说明为什么本项目不能只看 MRR：它奖励第一个相关命中，但不能说明所有必要 source 是否都被检索出来。
 
-## MMR Comparison - 2026-06-06
+## MMR 对比 - 2026-06-06
 
-The retrieval evaluator now supports explicit retrieval strategy parameters:
+检索 evaluator 现在支持显式传入检索策略参数：
 
 ```bash
 conda run -n AI_DEV python -m rag_app.scripts.evaluate_retrieval \
@@ -155,22 +147,22 @@ conda run -n AI_DEV python -m rag_app.scripts.evaluate_retrieval \
   --lambda-mult 0.3
 ```
 
-Formal comparison:
+正式对比：
 
-| Strategy | Passed | Source hit rate | MRR | Average expected source coverage | Average unique source count | Average duplicate source count |
+| 策略 | 通过数 | Source hit rate | MRR | Average expected source coverage | Average unique source count | Average duplicate source count |
 |---|---:|---:|---:|---:|---:|---:|
 | `similarity top_k=7` | 11/11 | 1.000 | 0.909 | 1.000 | 2.545 | 4.455 |
 | `mmr top_k=7 fetch_k=50 lambda=0.3` | 11/11 | 1.000 | 0.909 | 1.000 | 3.818 | 3.182 |
 
-Interpretation:
+解释：
 
-1. MMR with `fetch_k=50` and `lambda_mult=0.3` preserves the core retrieval quality metrics on the current 11-case set.
-2. The same MMR setting increases average unique source count from `2.545` to `3.818`, which is direct evidence that it reduces duplicate source concentration.
-3. Earlier exploratory runs showed that higher `lambda_mult` values can fail Qdrant cases, so MMR is parameter-sensitive and should not be enabled without fixed evaluation coverage.
+1. 在当前 11 条 case 上，`fetch_k=50`、`lambda_mult=0.3` 的 MMR 保持了核心检索质量指标。
+2. 同一 MMR 设置把 average unique source count 从 `2.545` 提高到 `3.818`，这是它降低重复 source 集中的直接证据。
+3. 早期探索运行显示，更高的 `lambda_mult` 会让 Qdrant case 失败，所以 MMR 对参数敏感，不能在没有固定评测覆盖的情况下直接启用。
 
-## Answer-level MMR Check - 2026-06-06
+## Answer-level MMR 检查 - 2026-06-06
 
-The answer-level evaluator now also accepts retrieval strategy parameters:
+answer-level evaluator 现在也支持检索策略参数：
 
 ```bash
 conda run -n AI_DEV python -m rag_app.scripts.evaluate_answers_with_judge \
@@ -180,89 +172,67 @@ conda run -n AI_DEV python -m rag_app.scripts.evaluate_answers_with_judge \
   --lambda-mult 0.3
 ```
 
-Valid answer-level comparison:
+有效的 answer-level 对比：
 
-| Strategy | Judge report | Passed | Failed |
+| 策略 | Judge report | 通过数 | 失败数 |
 |---|---|---:|---:|
 | `similarity top_k=7` | `rag/experiments/judge_runs/20260606-004310.json` | 11/11 | 0 |
 | `mmr top_k=7 fetch_k=50 lambda=0.3` | `rag/experiments/judge_runs/20260606-111842.json` | 11/11 | 0 |
 
-There was one invalid MMR judge run while Qdrant was unavailable:
-`rag/experiments/judge_runs/20260606-110726.json`. It returned fallback answers
-because retrieval failed with Qdrant `502` responses, so it is not used as a
-retrieval-strategy comparison.
+有一次无效的 MMR judge run 发生在 Qdrant 不可用时：
+`rag/experiments/judge_runs/20260606-110726.json`。这次运行因为 Qdrant `502` 响应导致检索失败并返回 fallback answer，所以不能用作检索策略对比。
 
-Interpretation:
+解释：
 
-1. MMR preserved answer-level judge quality on the current 11-case set.
-2. The answer-level result removes the main blocker to considering MMR as the default retrieval strategy.
-3. Before changing the default, one live `/ask` smoke comparison should still be run for the main comparison question, because LLM-as-Judge is helpful but not a complete substitute for inspecting the returned sources and trace.
+1. MMR 在当前 11 条 case 上保持了 answer-level judge 质量。
+2. answer-level 结果移除了“是否可以考虑 MMR 作为默认检索策略”的主要阻塞点。
+3. 但在修改默认策略前，仍然应该对主要对比问题跑一次 live `/ask` smoke comparison，因为 LLM-as-Judge 有帮助，但不能完全替代人工检查返回 source 和 trace。
 
-## Live Ask Smoke Comparison - 2026-06-06
+## Live Ask Smoke 对比 - 2026-06-06
 
-Question:
+问题：
 
 ```text
 LangChain 和 LlamaIndex 分别适合做什么？
 ```
 
-| Strategy | Retrieval status | Retrieved source count | Unique retrieved sources | Observation |
+| 策略 | 检索状态 | 检索 source 数 | 不同 source 数 | 观察 |
 |---|---|---:|---:|---|
-| `similarity top_k=7` | completed | 7 | 3 | Answer covered both frameworks; sources contained repeated LlamaIndex documents plus one LangChain source. |
-| `mmr top_k=7 fetch_k=50 lambda=0.3` | completed | 7 | 6 | Answer covered both frameworks; sources were more diverse, with both LangChain and LlamaIndex present. |
+| `similarity top_k=7` | completed | 7 | 3 | 回答覆盖两个框架；source 包含重复的 LlamaIndex 文档和一个 LangChain source。 |
+| `mmr top_k=7 fetch_k=50 lambda=0.3` | completed | 7 | 6 | 回答覆盖两个框架；source 更多样，同时包含 LangChain 和 LlamaIndex。 |
 
-The MMR smoke result supports moving forward, but it also shows the trade-off:
-MMR can introduce broader contextual sources while improving source diversity.
-That is acceptable for this case, but it is why the default switch should remain
-configuration-controlled and reversible.
+MMR 的 smoke 结果支持继续推进，但也展示了取舍：MMR 可以引入更广的上下文 source，同时提升 source 多样性。这个 case 可以接受这种变化，但默认策略切换仍然应该配置化、可回退。
 
-## Implementation Result
+## 实现结果
 
-> **Superseded by "Revision — Expanded Golden Set & MMR Reversal" below.** The
-> MMR-as-default decision was made on the saturated 11-case set; a harder set
-> reverses it.
+> **已被下面的“修订 - 扩展 Golden Set 与 MMR 回退”替代。** MMR 作为默认策略的判断来自已饱和的 11 条 case；更难的 case set 推翻了该判断。
 
-Keep `top_k=7` for now. The current evidence does not support reducing retrieval
-context to `top_k=3`.
+暂时保留 `top_k=7`。当前证据不支持把检索上下文降到 `top_k=3`。
 
-The default retrieval strategy has been switched to configuration-controlled
-MMR instead of hardcoding MMR directly. This keeps the current best candidate
-enabled by default while preserving a quick fallback to similarity if a future
-case regresses.
+默认检索策略曾经从硬编码切换为配置控制的 MMR，而不是直接写死 MMR。这样既能启用当时最好的候选策略，也能在未来 case 回归时快速切回 similarity。
 
-## Revision — Expanded Golden Set & MMR Reversal — 2026-06-07
+## 修订 - 扩展 Golden Set 与 MMR 回退 - 2026-06-07
 
-### Why revisit
+### 为什么重新评估
 
-The conclusions above were drawn on the original 11-case set, which is
-*saturated*: source hit rate, coverage, and MRR were all at or near ceiling, so
-"MMR ≈ similarity" could not be trusted — the set simply could not tell the two
-strategies apart.
+上面的结论来自原始 11 条 case set，而这组 case 已经饱和：source hit rate、coverage、MRR 全部达到或接近上限，所以“MMR 约等于 similarity”这个结论不可靠，因为 case set 本身区分不出两种策略。
 
-### Harder golden set
+### 更难的 golden set
 
-Expanded `retrieval_eval_cases.json` from 11 to 27 cases:
+`retrieval_eval_cases.json` 从 11 条扩展到 27 条：
 
-- 13 cases broaden topic coverage across the indexed corpus (CRAG, Self-RAG,
-  Atlas, ReAct, Toolformer, AutoGen, original chain-of-thought, InstructGPT,
-  scaling laws, Llama 3, PEFT quantization, plus two `match="all"` multi-source
-  cases).
-- 3 `hard_*` cases were found by measurement, not by guessing.
+- 13 条 case 扩大了索引语料的主题覆盖，包括 CRAG、Self-RAG、Atlas、ReAct、Toolformer、AutoGen、原始 chain-of-thought、InstructGPT、scaling laws、Llama 3、PEFT quantization，以及两个 `match="all"` 的多 source case。
+- 3 条 `hard_*` case 是通过实测发现的，不是凭感觉猜出来的。
 
-Method note: questions that name a distinctive method/term (e.g. "PagedAttention",
-"Toolformer", "reflection tokens") are retrieved at rank 1 even amid sibling
-documents — the embedding model is strong on this corpus. Hard cases only appear
-when the question is paraphrased into shared vocabulary, and even then the yield
-was ~3 in 20 probes. The 3 retained hard cases each have a sibling doc that
-outranks the correct source under similarity:
+方法说明：如果问题直接点名有辨识度的方法或术语，例如 “PagedAttention”、“Toolformer”、“reflection tokens”，即使有相邻主题文档干扰，embedding 模型也能在 rank 1 检索到正确 source。难例只会出现在问题被改写成共享语义词汇时，即便如此，在约 20 次 probing 里也只筛出 3 条。最终保留的 3 条 hard cases 都有一个 sibling doc 在 similarity 下排在正确 source 前面：
 
-- `hard_lora_frozen_lowrank`: peft `lora-methods.md` outranks the LoRA paper (rank 2)
-- `hard_selfrag_critique`: the self-consistency paper outranks Self-RAG (rank 3)
-- `hard_instructgpt_reward_ppo`: Llama 2 outranks InstructGPT (rank 2)
+- `hard_lora_frozen_lowrank`：PEFT 的 `lora-methods.md` 排在 LoRA paper 前面（rank 2）
+- `hard_selfrag_critique`：self-consistency paper 排在 Self-RAG 前面（rank 3）
+- `hard_instructgpt_reward_ppo`：Llama 2 排在 InstructGPT 前面（rank 2）
 
-### similarity vs MMR on the 27-case set (top_k=7)
+### 27 条 case 上的 similarity vs MMR（top_k=7）
 
-| Strategy | hit_rate | MRR | coverage | avg unique src | avg dup src |
+| 策略 | hit_rate | MRR | coverage | avg unique src | avg dup src |
 |---|---:|---:|---:|---:|---:|
 | `similarity` | 1.000 | **0.901** | 1.000 | 2.26 | 4.74 |
 | `mmr λ=0.3` | 1.000 | 0.892 | 1.000 | 3.15 | 3.85 |
@@ -270,42 +240,29 @@ outranks the correct source under similarity:
 | `mmr λ=0.7` | 0.889 | 0.870 | 0.889 | 3.78 | 3.22 |
 | `mmr λ=1.0` | 0.889 | 0.870 | 0.889 | 4.04 | 2.96 |
 
-At `top_k=3`, similarity MRR stays 0.901 while `mmr λ=0.3` drops to 0.883, and
-two `match="all"` cases (`langchain_llamaindex_comparison`,
-`cot_self_consistency_pair`) lose coverage under both strategies (n=27).
+在 `top_k=3` 时，similarity 的 MRR 仍然是 0.901，而 `mmr λ=0.3` 降到 0.883；两个 `match="all"` case（`langchain_llamaindex_comparison`、`cot_self_consistency_pair`）在两种策略下都会丢 coverage（n=27）。
 
-### Finding
+### 发现
 
-1. On a set that can actually discriminate, MMR **regresses relevance**: every
-   MMR setting lowers MRR vs similarity, and λ≥0.5 also lowers hit rate and
-   coverage. MMR never improved any case's rank; at λ=0.3 it only pushed two
-   hard cases lower (`hard_selfrag` 3→4, `hard_instructgpt` 2→3).
-2. MMR's only gain is source diversity (unique-source count rises), but the
-   earlier answer-level judge run was 11/11 either way, so that diversity did
-   not translate into better answers on this set.
-3. Caveat: the λ sweep was not monotonic (λ=1.0 did not collapse to similarity,
-   and unique-source count rose with λ). The langchain-qdrant MMR `lambda_mult`
-   behavior deserves a closer look, but it does not change the decision —
-   similarity dominates on relevance at every λ tested.
+1. 在真正有区分度的 case set 上，MMR **降低了相关性**：每个 MMR 设置的 MRR 都低于 similarity，且 λ≥0.5 时 hit rate 和 coverage 也降低。MMR 没有提升任何 case 的 rank；在 λ=0.3 时，它只是把两个 hard case 排得更靠后（`hard_selfrag` 3→4，`hard_instructgpt` 2→3）。
+2. MMR 唯一的收益是 source 多样性提高（unique-source count 上升），但此前 answer-level judge 在 similarity 和 MMR 下都是 11/11，所以这种多样性没有转化成更好的回答。
+3. 注意：λ sweep 的结果不是单调的（λ=1.0 没有退化成 similarity，unique-source count 反而随着 λ 上升）。langchain-qdrant 的 MMR `lambda_mult` 行为值得之后再细看，但这不影响当前决策：在测试过的每个 λ 上，similarity 的相关性都占优。
 
-### Decision
+### 决策
 
-Revert the default `RETRIEVAL_SEARCH_TYPE` to `similarity` (`config.py`,
-`.env.example`). MMR stays fully supported and opt-in via configuration for
-workloads that explicitly want diversity. Lesson: do not change a production
-default on evidence from a set that cannot see the cost.
+把默认 `RETRIEVAL_SEARCH_TYPE` 回退到 `similarity`（`config.py`、`.env.example`）。MMR 仍然完整支持，并作为配置 opt-in 保留给明确需要多样性的工作负载。经验教训：不要用无法暴露代价的 case set 作为生产默认策略切换的依据。
 
-## Answer-level Judge on Expanded 27-case Set - 2026-06-07
+## 扩展 27 条 case 后的 Answer-level Judge - 2026-06-07
 
-Command:
+命令：
 
 ```bash
 conda run --no-capture-output -n AI_DEV python -u -m rag_app.scripts.evaluate_answers_with_judge
 ```
 
-Report: `rag/experiments/judge_runs/20260607-201409.json`
+报告：`rag/experiments/judge_runs/20260607-201409.json`
 
-| Metric | Value |
+| 指标 | 值 |
 |---|---:|
 | Cases | 27 |
 | Passed | 27 |
@@ -316,14 +273,8 @@ Report: `rag/experiments/judge_runs/20260607-201409.json`
 | Average judge duration | 44.24s |
 | Average total duration | 79.91s |
 
-Interpretation:
+解释：
 
-1. The answer-level judge now covers the same expanded 27-case default set used
-   for retrieval experiments, including the measured hard cases.
-2. With the default `similarity` strategy at `top_k=7`, all 27 answers passed
-   the judge. This supports keeping similarity as the default after the MMR
-   sweep.
-3. Runtime is dominated by model calls: answer generation plus judging averages
-   79.91s per case. Future eval speed work should focus on workflow controls
-   such as partial runs, targeted case selection, or cheaper judge settings
-   before spending more effort on retriever/client reuse.
+1. answer-level judge 现在覆盖了与检索实验相同的扩展 27 条 default case set，其中包括实测 hard cases。
+2. 在默认 `similarity` 策略和 `top_k=7` 下，27 条回答全部通过 judge。这支持在 MMR sweep 后继续保持 similarity 作为默认策略。
+3. 运行时间主要由模型调用主导：answer generation 加 judging 平均每条 case 79.91s。后续如果要优化 eval 速度，应优先做 partial runs、targeted case selection、低成本 judge 设置等评测流程控制，而不是继续优先投入 retriever/client reuse。

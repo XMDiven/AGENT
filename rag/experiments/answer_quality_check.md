@@ -1,12 +1,12 @@
-# RAG Answer Quality Check
+# RAG 回答质量检查
 
-| id | answer_correct | source_supported | hallucination | quality | notes |
+| id | 回答是否正确 | 来源是否支持 | 是否幻觉 | 质量 | 备注 |
 | --- | --- | --- | --- | --- | --- |
-| gpt4_report_scope | yes | yes | no | PASS | Answer is grounded by GPT-4 technical report sources. |
-| qdrant_usage | yes | yes | no | PASS | Answer is grounded by Qdrant docs. |
-| langchain_usage | yes | yes | no | PASS | Answer is grounded by LangChain README. |
-| rag_paper_definition | yes | yes | no | PASS | Answer is grounded by RAG paper. |
-| qlora_memory | yes | yes | no | PASS | Answer is grounded by QLoRA paper. |
-| lora_low_rank | yes | yes | no | PASS | Answer is grounded by LoRA paper. |
-| self_consistency_reasoning | yes | yes | no | PASS | Answer is grounded by self-consistency paper. |
-| vllm_paged_attention | yes | yes | no | PASS | Answer is grounded by vLLM docs. |
+| gpt4_report_scope | 是 | 是 | 否 | PASS | 回答由 GPT-4 technical report source 支撑。 |
+| qdrant_usage | 是 | 是 | 否 | PASS | 回答由 Qdrant docs 支撑。 |
+| langchain_usage | 是 | 是 | 否 | PASS | 回答由 LangChain README 支撑。 |
+| rag_paper_definition | 是 | 是 | 否 | PASS | 回答由 RAG paper 支撑。 |
+| qlora_memory | 是 | 是 | 否 | PASS | 回答由 QLoRA paper 支撑。 |
+| lora_low_rank | 是 | 是 | 否 | PASS | 回答由 LoRA paper 支撑。 |
+| self_consistency_reasoning | 是 | 是 | 否 | PASS | 回答由 self-consistency paper 支撑。 |
+| vllm_paged_attention | 是 | 是 | 否 | PASS | 回答由 vLLM docs 支撑。 |

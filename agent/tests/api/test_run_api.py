@@ -145,6 +145,10 @@ def test_run_agent_endpoint_uses_summary_tool_for_summary_question(
         tool_name="summary_tool",
         tool_args={"text": "请总结 LangChain 的用途"},
     )
+    monkeypatch.setattr(
+        "agent_app.orchestration.executor.run_summary_tool",
+        lambda text: {"summary": "LangChain 用途摘要"},
+    )
 
     response = client.post(
         "/agent/run",
@@ -159,12 +163,12 @@ def test_run_agent_endpoint_uses_summary_tool_for_summary_question(
 
     assert "plan" not in data
     assert "tool_result" not in data
-    assert data["answer"] == "请总结 LangChain 的用途"
+    assert data["answer"] == "LangChain 用途摘要"
     assert data["sources"] == []
     assert data["selected_tool"] == "summary_tool"
     assert data["tool_status"] == "success"
     assert data["tool_output"] == {
-        "summary": "请总结 LangChain 的用途",
+        "summary": "LangChain 用途摘要",
     }
     assert data["trace"][1]["detail"]["tool_args"] == {
         "text": "请总结 LangChain 的用途",

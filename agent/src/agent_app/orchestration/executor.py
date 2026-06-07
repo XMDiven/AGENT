@@ -149,10 +149,30 @@ def execute_plan(
     if plan.tool.name == "summary_tool":
         text = str((tool_input or {}).get("text", ""))
 
+        try:
+            output = run_summary_tool(text)
+        except Exception as error:
+            return ToolResult(
+                tool_name=plan.tool.name,
+                status="failed",
+                output={
+                    "error_type": type(error).__name__,
+                    "error": str(error),
+                },
+                attempts=[
+                    {
+                        "attempt": 1,
+                        "status": "failed",
+                        "error_type": type(error).__name__,
+                        "error": str(error),
+                    }
+                ],
+            )
+
         return ToolResult(
             tool_name=plan.tool.name,
             status="success",
-            output=run_summary_tool(text),
+            output=output,
             attempts=[
                 {
                     "attempt": 1,

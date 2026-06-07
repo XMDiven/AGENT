@@ -58,7 +58,11 @@ def test_execute_plan_runs_fallback_tool() -> None:
     ]
 
 
-def test_execute_plan_runs_summary_tool() -> None:
+def test_execute_plan_runs_summary_tool(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "agent_app.orchestration.executor.run_summary_tool",
+        lambda text: {"summary": "LangChain helps build LLM apps."},
+    )
     plan = AgentPlan(
         tool=get_tool("summary_tool"),
         reason="question asks for summarization",
@@ -341,4 +345,41 @@ def test_execute_plan_returns_failed_result_when_retrieval_tool_fails(
             "error_type": "RuntimeError",
             "error": "rag unavailable",
         },
+    ]
+
+
+def test_execute_plan_returns_failed_result_when_summary_tool_fails(
+    monkeypatch,
+) -> None:
+    plan = AgentPlan(
+        tool=get_tool("summary_tool"),
+        reason="question asks for summarization",
+    )
+
+    def raise_summary_error(text: str):
+        raise RuntimeError("summary model unavailable")
+
+    monkeypatch.setattr(
+        "agent_app.orchestration.executor.run_summary_tool",
+        raise_summary_error,
+    )
+
+    result = execute_plan(
+        plan,
+        tool_input={"text": "LangChain helps build LLM apps."},
+    )
+
+    assert result.tool_name == "summary_tool"
+    assert result.status == "failed"
+    assert result.output == {
+        "error_type": "RuntimeError",
+        "error": "summary model unavailable",
+    }
+    assert result.attempts == [
+        {
+            "attempt": 1,
+            "status": "failed",
+            "error_type": "RuntimeError",
+            "error": "summary model unavailable",
+        }
     ]

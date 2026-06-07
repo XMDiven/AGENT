@@ -151,6 +151,10 @@ def test_run_agent_uses_summary_tool_for_summary_question(monkeypatch) -> None:
         tool_name="summary_tool",
         tool_args={"text": "请总结 LangChain 的用途"},
     )
+    monkeypatch.setattr(
+        "agent_app.orchestration.executor.run_summary_tool",
+        lambda text: {"summary": "LangChain 用途摘要"},
+    )
 
     result = run_agent("请总结 LangChain 的用途")
 
@@ -158,7 +162,7 @@ def test_run_agent_uses_summary_tool_for_summary_question(monkeypatch) -> None:
     assert result.tool_result.tool_name == "summary_tool"
     assert result.tool_result.status == "success"
     assert result.tool_result.output == {
-        "summary": "请总结 LangChain 的用途",
+        "summary": "LangChain 用途摘要",
     }
     assert result.tool_result.attempts == [
         {

@@ -66,7 +66,7 @@ AVAILABLE_TOOLS: dict[str, ToolDefinition] = {
             "properties": {
                 "summary": {
                     "type": "string",
-                    "description": "Short deterministic summary.",
+                    "description": "Concise LLM-generated summary.",
                 },
             },
         },

@@ -1,8 +1,6 @@
 import json
-import os
 import uuid
 
-import dotenv
 from langchain_core.documents import Document
 from langchain_qdrant import QdrantVectorStore
 
@@ -10,20 +8,19 @@ from rag_app.config import config
 from rag_app.infrastructure.embedding_client import get_embeddings
 
 
-dotenv.load_dotenv()
-
-
 def get_vector_store() -> QdrantVectorStore:
-    qdrant_url = os.getenv("QDRANT_URL")
-    collection_name = config.COLLECTION_NAME
+    qdrant_url = config.settings.qdrant_url
+    collection_name = config.settings.qdrant_collection
+
     if not qdrant_url:
         raise RuntimeError("QDRANT_URL is not set")
+
     if not collection_name:
         raise RuntimeError("QDRANT_COLLECTION is not set")
 
     return QdrantVectorStore.from_existing_collection(
         embedding=get_embeddings(),
-        collection_name=config.COLLECTION_NAME,
+        collection_name=collection_name,
         url=qdrant_url,
     )
 

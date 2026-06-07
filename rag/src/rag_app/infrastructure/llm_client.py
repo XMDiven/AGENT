@@ -1,15 +1,12 @@
-import os
-
-import dotenv
 from langchain_openai import ChatOpenAI
 
-dotenv.load_dotenv()
+from rag_app.config import config
 
 
 def get_client() -> ChatOpenAI:
-    base_url = os.getenv("LLM_BASE_URL")
-    model = os.getenv("LLM_MODEL_ID")
-    api_key = os.getenv("MOONSHOT_API_KEY") or os.getenv("OPENAI_API_KEY")
+    base_url = config.settings.llm_base_url
+    model = config.settings.llm_model_id
+    api_key = config.settings.llm_api_key
 
     if not base_url:
         raise RuntimeError("LLM_BASE_URL is not set")

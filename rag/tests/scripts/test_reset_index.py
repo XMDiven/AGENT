@@ -12,8 +12,16 @@ def test_reset_index_deletes_all_points_from_configured_collection(
     mock_client = Mock()
     mock_qdrant_client = Mock(return_value=mock_client)
 
-    monkeypatch.setenv("QDRANT_URL", "http://localhost:6333")
-    monkeypatch.setattr(reset_index.config, "COLLECTION_NAME", "documents")
+    monkeypatch.setattr(
+        reset_index.config.settings,
+        "qdrant_url",
+        "http://localhost:6333",
+    )
+    monkeypatch.setattr(
+        reset_index.config.settings,
+        "qdrant_collection",
+        "documents",
+    )
     monkeypatch.setattr(reset_index, "QdrantClient", mock_qdrant_client)
 
     result = reset_index.reset_index()

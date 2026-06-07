@@ -1,5 +1,3 @@
-import os
-
 from qdrant_client import QdrantClient, models
 
 from rag_app.config import config
@@ -7,8 +5,8 @@ from rag_app.config import config
 
 def reset_index() -> dict[str, str | bool]:
     """Delete all points from the configured Qdrant collection."""
-    qdrant_url = os.getenv("QDRANT_URL")
-    collection_name = config.COLLECTION_NAME
+    qdrant_url = config.settings.qdrant_url
+    collection_name = config.settings.qdrant_collection
 
     if not qdrant_url:
         raise RuntimeError("QDRANT_URL is not set")

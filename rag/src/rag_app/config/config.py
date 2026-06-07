@@ -1,34 +1,66 @@
-import os
 from pathlib import Path
+from typing import Literal
 
-import dotenv
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT: Path = Path(__file__).resolve().parents[3]
 DATA_DIR: Path = PROJECT_ROOT / "data"
 RAW_DATA_DIR: Path = DATA_DIR / "raw"
 
-dotenv.load_dotenv(PROJECT_ROOT / ".env")
-CHUNK_SIZE: int = 800
-CHUNK_OVERLAP: int = 100
-RETRIEVAL_TOP_K: int = int(os.getenv("RETRIEVAL_TOP_K", "7"))
-RETRIEVAL_SEARCH_TYPE: str = os.getenv("RETRIEVAL_SEARCH_TYPE", "similarity")
-RETRIEVAL_FETCH_K: int = int(os.getenv("RETRIEVAL_FETCH_K", "50"))
-RETRIEVAL_LAMBDA_MULT: float = float(
-    os.getenv("RETRIEVAL_LAMBDA_MULT", "0.3")
-)
+RetrievalSearchType = Literal["similarity", "mmr"]
 
-COLLECTION_NAME: str | None = os.getenv("QDRANT_COLLECTION")
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=PROJECT_ROOT / ".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    chunk_size: int = 800
+    chunk_overlap: int = 100
+
+    retrieval_top_k: int = 7
+    retrieval_search_type: RetrievalSearchType = "similarity"
+    retrieval_fetch_k: int = 50
+    retrieval_lambda_mult: float = 0.3
+
+    qdrant_url: str | None = None
+    qdrant_collection: str | None = None
+
+    embedding_base_url: str | None = None
+    embedding_model: str | None = None
+
+    llm_base_url: str | None = None
+    llm_model_id: str | None = None
+    moonshot_api_key: str | None = None
+    openai_api_key: str | None = None
+
+    qa_prompt_version: str = "qa_prompt_v1"
+
+    @property
+    def llm_api_key(self) -> str | None:
+        return self.moonshot_api_key or self.openai_api_key
+
+
+settings = Settings()
+
+CHUNK_SIZE: int = settings.chunk_size
+CHUNK_OVERLAP: int = settings.chunk_overlap
+RETRIEVAL_TOP_K: int = settings.retrieval_top_k
+RETRIEVAL_SEARCH_TYPE: str = settings.retrieval_search_type
+RETRIEVAL_FETCH_K: int = settings.retrieval_fetch_k
+RETRIEVAL_LAMBDA_MULT: float = settings.retrieval_lambda_mult
+COLLECTION_NAME: str | None = settings.qdrant_collection
 
 MAX_RETRIEVAL_RETRY: int = 1
 MAX_GENERATION_RETRY: int = 1
-
 
 FALLBACK_ANSWER: str = (
     "我无法仅根据当前检索到的上下文可靠回答这个问题。"
 )
 
-QA_PROMPT_VERSION: str = os.getenv("QA_PROMPT_VERSION", "qa_prompt_v1")
-
+QA_PROMPT_VERSION: str = settings.qa_prompt_version
 
 DEFAULT_SYSTEM_PROMPT: str = """
 You are a RAG assistant.

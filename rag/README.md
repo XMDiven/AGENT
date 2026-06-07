@@ -76,6 +76,24 @@ MOONSHOT_API_KEY or OPENAI_API_KEY
 docker compose up -d qdrant
 ```
 
+也可以构建 RAG 应用镜像：
+
+```bash
+docker build -t rag-app .
+```
+
+从容器启动 RAG API：
+
+```bash
+docker run --rm --env-file .env \
+  -e QDRANT_URL=http://host.docker.internal:6333 \
+  -e EMBEDDING_BASE_URL=http://host.docker.internal:11434 \
+  -p 8001:8001 \
+  rag-app
+```
+
+说明：容器里的 `localhost` 指向容器自身，不是宿主机。如果 Qdrant 或 Ollama embedding 服务运行在宿主机上，macOS/OrbStack/Docker Desktop 通常使用 `host.docker.internal` 访问。若这些服务运行在其他网络或 compose service 中，请把 `QDRANT_URL`、`EMBEDDING_BASE_URL` 改成容器可访问的地址。
+
 ## 快速开始
 
 1. 创建并激活 Python 环境：
@@ -511,6 +529,24 @@ Qdrant can be started with Docker Compose:
 ```bash
 docker compose up -d qdrant
 ```
+
+You can also build the RAG application image:
+
+```bash
+docker build -t rag-app .
+```
+
+Start the RAG API from the image:
+
+```bash
+docker run --rm --env-file .env \
+  -e QDRANT_URL=http://host.docker.internal:6333 \
+  -e EMBEDDING_BASE_URL=http://host.docker.internal:11434 \
+  -p 8001:8001 \
+  rag-app
+```
+
+Note: `localhost` inside a container points to the container itself, not the host machine. If Qdrant or the Ollama embedding service runs on the host, macOS/OrbStack/Docker Desktop usually reaches it through `host.docker.internal`. If those services run on another network or as compose services, set `QDRANT_URL` and `EMBEDDING_BASE_URL` to addresses reachable from the container.
 
 ## Quickstart
 

@@ -10,13 +10,22 @@ class DummyCase:
     question: str
 
 
+@dataclass(frozen=True)
+class DummyResources:
+    llm_client: object
+
+
+def fake_resources() -> DummyResources:
+    return DummyResources(llm_client=object())
+
+
 def test_evaluate_case_records_judge_result(monkeypatch) -> None:
     case = DummyCase(id="qdrant_usage", question="What is Qdrant used for?")
 
     monkeypatch.setattr(
         evaluate_answers_with_judge,
         "ask_question",
-        lambda question: {
+        lambda question, **kwargs: {
             "answer": "Qdrant is used for vector search.",
             "sources": [
                 {
@@ -54,6 +63,7 @@ def test_evaluate_case_passes_retrieval_options_to_ask_question(
     monkeypatch,
 ) -> None:
     case = DummyCase(id="qdrant_usage", question="What is Qdrant used for?")
+    resources = fake_resources()
     calls = []
 
     def fake_ask_question(question, **kwargs):
@@ -89,6 +99,7 @@ def test_evaluate_case_passes_retrieval_options_to_ask_question(
     evaluate_answers_with_judge.evaluate_case(
         case,
         llm=object(),
+        resources=resources,
         top_k=7,
         search_type="mmr",
         fetch_k=50,
@@ -98,6 +109,7 @@ def test_evaluate_case_passes_retrieval_options_to_ask_question(
     assert calls == [
         {
             "question": "What is Qdrant used for?",
+            "resources": resources,
             "top_k": 7,
             "search_type": "mmr",
             "fetch_k": 50,
@@ -112,7 +124,7 @@ def test_evaluate_case_records_failure_when_judge_raises(monkeypatch) -> None:
     monkeypatch.setattr(
         evaluate_answers_with_judge,
         "ask_question",
-        lambda question: {
+        lambda question, **kwargs: {
             "answer": "Qdrant is used for vector search.",
             "sources": [],
         },
@@ -152,15 +164,22 @@ def test_run_evaluation_prints_case_progress(monkeypatch, capsys) -> None:
         "load_case",
         lambda: cases,
     )
+    resources = fake_resources()
+    calls = []
     monkeypatch.setattr(
         evaluate_answers_with_judge,
-        "get_client",
-        lambda: object(),
+        "create_app_resources",
+        lambda: resources,
     )
-    monkeypatch.setattr(
-        evaluate_answers_with_judge,
-        "evaluate_case",
-        lambda case, llm: {
+
+    def fake_evaluate_case(case, llm, **kwargs):
+        calls.append(
+            {
+                "llm": llm,
+                **kwargs,
+            }
+        )
+        return {
             "id": case.id,
             "question": case.question,
             "answer": "answer",
@@ -171,7 +190,12 @@ def test_run_evaluation_prints_case_progress(monkeypatch, capsys) -> None:
             "answer_duration_seconds": 1.0,
             "judge_duration_seconds": 2.0,
             "total_duration_seconds": 3.0,
-        },
+        }
+
+    monkeypatch.setattr(
+        evaluate_answers_with_judge,
+        "evaluate_case",
+        fake_evaluate_case,
     )
 
     summary = evaluate_answers_with_judge.run_evaluation()
@@ -181,6 +205,16 @@ def test_run_evaluation_prints_case_progress(monkeypatch, capsys) -> None:
     assert "Evaluating judge case 1/2: case_one" in output
     assert "completed case_one passed=True total=3.0s" in output
     assert "Evaluating judge case 2/2: case_two" in output
+    assert calls == [
+        {
+            "llm": resources.llm_client,
+            "resources": resources,
+        },
+        {
+            "llm": resources.llm_client,
+            "resources": resources,
+        },
+    ]
 
 
 def test_run_evaluation_uses_custom_cases(monkeypatch) -> None:
@@ -194,13 +228,13 @@ def test_run_evaluation_uses_custom_cases(monkeypatch) -> None:
     )
     monkeypatch.setattr(
         evaluate_answers_with_judge,
-        "get_client",
-        lambda: object(),
+        "create_app_resources",
+        lambda: fake_resources(),
     )
     monkeypatch.setattr(
         evaluate_answers_with_judge,
         "evaluate_case",
-        lambda case, llm: {
+        lambda case, llm, **kwargs: {
             "id": case.id,
             "question": case.question,
             "answer": "answer",
@@ -241,10 +275,11 @@ def test_run_evaluation_records_retrieval_config(monkeypatch) -> None:
         "load_case",
         lambda: cases,
     )
+    resources = fake_resources()
     monkeypatch.setattr(
         evaluate_answers_with_judge,
-        "get_client",
-        lambda: object(),
+        "create_app_resources",
+        lambda: resources,
     )
 
     def fake_evaluate_case(case, llm, **kwargs):
@@ -277,6 +312,7 @@ def test_run_evaluation_records_retrieval_config(monkeypatch) -> None:
 
     assert calls == [
         {
+            "resources": resources,
             "top_k": 7,
             "search_type": "mmr",
             "fetch_k": 50,
@@ -296,11 +332,11 @@ def test_run_evaluation_applies_case_limit_to_custom_cases(monkeypatch) -> None:
 
     monkeypatch.setattr(
         evaluate_answers_with_judge,
-        "get_client",
-        lambda: object(),
+        "create_app_resources",
+        lambda: fake_resources(),
     )
 
-    def fake_evaluate_case(case, llm):
+    def fake_evaluate_case(case, llm, **kwargs):
         evaluated_case_ids.append(case.id)
 
         return {

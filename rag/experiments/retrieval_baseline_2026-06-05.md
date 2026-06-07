@@ -8,7 +8,8 @@ MMR retrieval strategy.
 
 The original baseline was plain Qdrant similarity search with `top_k=7`.
 The current default retrieval strategy is now controlled by environment
-configuration and defaults to `mmr top_k=7 fetch_k=50 lambda_mult=0.3`.
+configuration and defaults to `similarity top_k=7`. MMR remains available as
+an opt-in strategy.
 
 ## Command
 
@@ -34,16 +35,16 @@ Effective baseline `top_k`: `7`
 Source: `rag/src/rag_app/config/config.py`
 
 ```text
-RETRIEVAL_SEARCH_TYPE=mmr
+RETRIEVAL_SEARCH_TYPE=similarity
 RETRIEVAL_TOP_K=7
-RETRIEVAL_FETCH_K=50
-RETRIEVAL_LAMBDA_MULT=0.3
 ```
 
-To fall back quickly for a regression check, set:
+To run an MMR experiment, set:
 
 ```text
-RETRIEVAL_SEARCH_TYPE=similarity
+RETRIEVAL_SEARCH_TYPE=mmr
+RETRIEVAL_FETCH_K=50
+RETRIEVAL_LAMBDA_MULT=0.3
 ```
 
 When `RETRIEVAL_SEARCH_TYPE=similarity`, `RETRIEVAL_FETCH_K` and

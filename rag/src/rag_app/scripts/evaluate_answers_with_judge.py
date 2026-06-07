@@ -11,7 +11,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 
 from rag_app.config import config
 from rag_app.evaluation.answer_judge import judge_answer
-from rag_app.infrastructure.llm_client import get_client
+from rag_app.infrastructure.resources import AppResources, create_app_resources
 from rag_app.retrieval.retriever import RetrievalSearchType, build_search_kwargs
 from rag_app.scripts.evaluate_retrieval import RetrievalEvalCase, load_case
 from rag_app.services.ask_service import ask_question
@@ -51,6 +51,7 @@ def normalize_sources(sources: Any) -> list[dict[str, Any]]:
 def evaluate_case(
     case: RetrievalEvalCase,
     llm: BaseChatModel,
+    resources: AppResources | None = None,
     top_k: int | None = None,
     search_type: RetrievalSearchType | None = None,
     fetch_k: int | None = None,
@@ -60,21 +61,15 @@ def evaluate_case(
     answer_start = perf_counter()
 
     try:
-        if (
-            top_k is None
-            and search_type is None
-            and fetch_k is None
-            and lambda_mult is None
-        ):
-            result = ask_question(case.question)
-        else:
-            result = ask_question(
-                case.question,
-                top_k=top_k,
-                search_type=search_type,
-                fetch_k=fetch_k,
-                lambda_mult=lambda_mult,
-            )
+        result = ask_question(
+            case.question,
+            resources=resources,
+            top_k=top_k,
+            search_type=search_type,
+            fetch_k=fetch_k,
+            lambda_mult=lambda_mult,
+        )
+
     except Exception as error:
         answer_duration_seconds = round(perf_counter() - answer_start, 2)
         return {
@@ -182,7 +177,9 @@ def run_evaluation(
 
         if case_limit is not None:
             eval_cases = eval_cases[:case_limit]
-        llm = get_client()
+
+        resources = create_app_resources()
+        llm = resources.llm_client
         results = []
 
         for index, case in enumerate(eval_cases, start=1):
@@ -196,11 +193,16 @@ def run_evaluation(
                 and fetch_k is None
                 and lambda_mult is None
             ):
-                result = evaluate_case(case, llm)
+                result = evaluate_case(
+                    case,
+                    llm,
+                    resources=resources,
+                )
             else:
                 result = evaluate_case(
                     case,
                     llm,
+                    resources=resources,
                     top_k=top_k,
                     search_type=search_type,
                     fetch_k=fetch_k,

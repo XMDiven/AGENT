@@ -8,7 +8,9 @@ version = "0.1.0"
 description = "Lightweight agent orchestration layer."
 requires-python = ">=3.11"
 dependencies = [
+    "agent-rag",
     "fastapi",
+    "uvicorn[standard]",
 ]
 
 [tool.setuptools.packages.find]

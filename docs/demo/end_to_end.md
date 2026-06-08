@@ -8,15 +8,14 @@ projects.
 - Run time: 2026-06-04 13:14:25 CST
 - Repository: `/Users/mdiven/Code/Projects/AGENT`
 - Conda environment: `AI_DEV`
-- RAG service: `http://127.0.0.1:8001`
-- Agent service: `http://127.0.0.1:8010`
+- RAG service: `http://127.0.0.1:8002`
+- Agent service: `http://127.0.0.1:8001`
 - LLM model: `kimi-k2.5`
 - Vector store: Qdrant, collection `documents`
 - Demo file: `rag/data/raw/qdrant-docs.md`
 
-The Agent demo used port `8010` because port `8000` was already occupied on
-this machine. If port `8000` is free locally, the same request shape works with
-`http://127.0.0.1:8000`.
+The current local convention is: Agent API uses port `8001`; RAG API uses port
+`8002`.
 
 ## Preconditions
 
@@ -33,7 +32,7 @@ Start the RAG API:
 
 ```bash
 cd /Users/mdiven/Code/Projects/AGENT/rag
-conda run -n AI_DEV uvicorn rag_app.app.main:app --host 127.0.0.1 --port 8001
+conda run -n AI_DEV uvicorn rag_app.app.main:app --host 127.0.0.1 --port 8002
 ```
 
 Start the Agent API:
@@ -41,14 +40,14 @@ Start the Agent API:
 ```bash
 cd /Users/mdiven/Code/Projects/AGENT/agent
 PYTHONPATH=/Users/mdiven/Code/Projects/AGENT/agent/src:/Users/mdiven/Code/Projects/AGENT/rag/src \
-  conda run -n AI_DEV uvicorn agent_app.app.main:app --host 127.0.0.1 --port 8010
+  conda run -n AI_DEV uvicorn agent_app.app.main:app --host 127.0.0.1 --port 8001
 ```
 
 Health checks:
 
 ```bash
+curl -sS http://127.0.0.1:8002/health
 curl -sS http://127.0.0.1:8001/health
-curl -sS http://127.0.0.1:8010/health
 ```
 
 Observed responses:
@@ -67,7 +66,7 @@ Command:
 
 ```bash
 cd /Users/mdiven/Code/Projects/AGENT
-curl -sS -X POST http://127.0.0.1:8001/documents/upload \
+curl -sS -X POST http://127.0.0.1:8002/documents/upload \
   -F "file=@rag/data/raw/qdrant-docs.md;type=text/markdown"
 ```
 
@@ -86,7 +85,7 @@ Observed response:
 Command:
 
 ```bash
-curl -sS -X POST http://127.0.0.1:8001/documents/ingest \
+curl -sS -X POST http://127.0.0.1:8002/documents/ingest \
   -H "Content-Type: application/json" \
   -d '{"filename":"qdrant-docs.md"}'
 ```
@@ -107,7 +106,7 @@ Observed response:
 Command:
 
 ```bash
-curl -sS -X POST http://127.0.0.1:8001/ask \
+curl -sS -X POST http://127.0.0.1:8002/ask \
   -H "Content-Type: application/json" \
   -d '{"question":"What is Qdrant used for in vector search?"}'
 ```
@@ -178,7 +177,7 @@ Observed response excerpt:
 Command:
 
 ```bash
-curl -sS -N -X POST http://127.0.0.1:8001/ask/stream \
+curl -sS -N -X POST http://127.0.0.1:8002/ask/stream \
   -H "Content-Type: application/json" \
   -d '{"question":"What is Qdrant used for in vector search?"}'
 ```
@@ -230,7 +229,7 @@ Observed NDJSON summary:
 Command:
 
 ```bash
-curl -sS -X POST http://127.0.0.1:8010/agent/run \
+curl -sS -X POST http://127.0.0.1:8001/agent/run \
   -H "Content-Type: application/json" \
   -d '{"question":"What is Qdrant used for in vector search?"}'
 ```

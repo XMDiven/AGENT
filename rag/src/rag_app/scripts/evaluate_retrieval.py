@@ -298,7 +298,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--search-type",
-        choices=["similarity", "mmr"],
+        choices=["similarity", "mmr" , "hybrid"],
         default=None,
         help="Retriever search strategy. Defaults to RETRIEVAL_SEARCH_TYPE.",
     )

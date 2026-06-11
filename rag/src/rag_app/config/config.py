@@ -7,7 +7,7 @@ PROJECT_ROOT: Path = Path(__file__).resolve().parents[3]
 DATA_DIR: Path = PROJECT_ROOT / "data"
 RAW_DATA_DIR: Path = DATA_DIR / "raw"
 
-RetrievalSearchType = Literal["similarity", "mmr"]
+RetrievalSearchType = Literal["similarity", "mmr" , "hybrid"]
 
 
 class Settings(BaseSettings):
@@ -24,6 +24,10 @@ class Settings(BaseSettings):
     retrieval_search_type: RetrievalSearchType = "similarity"
     retrieval_fetch_k: int = 50
     retrieval_lambda_mult: float = 0.3
+
+    retrieval_hybrid_candidate_k: int = 20
+    retrieval_hybrid_bm25_weight: float = 0.5
+    retrieval_hybrid_dense_weight: float = 0.5
 
     qdrant_url: str | None = None
     qdrant_collection: str | None = None
@@ -52,6 +56,10 @@ RETRIEVAL_SEARCH_TYPE: str = settings.retrieval_search_type
 RETRIEVAL_FETCH_K: int = settings.retrieval_fetch_k
 RETRIEVAL_LAMBDA_MULT: float = settings.retrieval_lambda_mult
 COLLECTION_NAME: str | None = settings.qdrant_collection
+
+RETRIEVAL_HYBRID_CANDIDATE_K: int = settings.retrieval_hybrid_candidate_k
+RETRIEVAL_HYBRID_BM25_WEIGHT: float = settings.retrieval_hybrid_bm25_weight
+RETRIEVAL_HYBRID_DENSE_WEIGHT: float = settings.retrieval_hybrid_dense_weight
 
 MAX_RETRIEVAL_RETRY: int = 1
 MAX_GENERATION_RETRY: int = 1

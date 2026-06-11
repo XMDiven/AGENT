@@ -1,14 +1,8 @@
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
+from agent_app.prompts import SUMMARY_SYSTEM_PROMPT
 from rag_app.infrastructure.llm_client import get_client
-
-_SUMMARY_SYSTEM_PROMPT = """
-You are a summarization tool.
-Summarize the provided text concisely.
-Do not add facts that are not in the text.
-Return only the summary.
-""".strip()
 
 
 def extract_message_content(message: AIMessage) -> str:
@@ -35,7 +29,7 @@ def run_summary_tool(
     client = llm or get_client()
     message = client.invoke(
         [
-            SystemMessage(content=_SUMMARY_SYSTEM_PROMPT),
+            SystemMessage(content=SUMMARY_SYSTEM_PROMPT),
             HumanMessage(content=normalized_text),
         ]
     )

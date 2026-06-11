@@ -4,13 +4,9 @@ from typing import Any
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
+from agent_app.prompts import PLANNER_SYSTEM_PROMPT
 from agent_app.tools import get_tool, list_tools, ToolDefinition
 from rag_app.infrastructure.llm_client import get_client
-
-_PLANNER_SYSTEM_PROMPT = (
-    "You are an agent planner. Select exactly one tool. "
-    "Do not answer the user question directly."
-)
 
 
 @dataclass(frozen=True)
@@ -46,7 +42,7 @@ def select_tool_with_llm(
 
     message = tool_calling_llm.invoke(
         [
-            SystemMessage(content=_PLANNER_SYSTEM_PROMPT),
+            SystemMessage(content=PLANNER_SYSTEM_PROMPT),
             HumanMessage(content=question),
         ]
     )

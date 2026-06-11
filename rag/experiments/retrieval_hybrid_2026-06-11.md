@@ -1,0 +1,100 @@
+# Hybrid 检索实验报告 - 2026-06-11
+
+## 目的
+
+在 `similarity` / `mmr` 之外新增第三种检索策略 `hybrid`（BM25 词法 + 稠密向量，RRF 融合），
+并用数据回答一个问题：**在本项目语料上，hybrid 是否优于纯稠密检索？**
+
+延续 `retrieval_baseline_2026-06-05.md` 的方法论：配置控制、变量冻结、正负结果都如实记录。
+默认策略仍为 `similarity`；hybrid 为 opt-in。
+
+## 实现要点
+
+来源：`rag/src/rag_app/retrieval/retriever.py`
+
+- BM25 语料**从 Qdrant scroll 读回**（`load_corpus_documents`），不重新解析 `data/raw`。
+  - 原因：用 `unstructured` 重新解析全部文件约需 **26 分钟**（其中含一个损坏的大 PDF），
+    且与向量库可能不一致。直接读回索引时的 chunk → **0.8 秒**，且与向量库**逐字一致**（去重后 22387 条）。
+- BM25 使用**代码感知分词器** `code_aware_tokenize`（按非字母数字切分 + 小写）。
+  - 原因见下文"根因诊断"：默认分词器只按空格切，无法匹配粘标点的代码符号。
+- 融合用 `EnsembleRetriever`（RRF），各路先召回 `candidate_k=20`，融合后截断到 `top_k=7`。
+- 权重 `bm25 / dense` 通过 settings 配置，默认 `0.5 / 0.5`。
+
+## 运行命令
+
+从 `rag/` 目录：
+
+```bash
+# 全量 27 条 golden set
+python -m rag_app.scripts.evaluate_retrieval --search-type similarity
+python -m rag_app.scripts.evaluate_retrieval --search-type hybrid
+
+# lexical-stress 子集（精确符号查询）
+python -m rag_app.scripts.evaluate_retrieval --search-type hybrid \
+  --cases-path experiments/retrieval_eval_cases_lexical.json
+
+# 调权重（env 覆盖）
+RETRIEVAL_HYBRID_BM25_WEIGHT=0.3 RETRIEVAL_HYBRID_DENSE_WEIGHT=0.7 \
+  python -m rag_app.scripts.evaluate_retrieval --search-type hybrid
+```
+
+冻结项：`top_k=7`、collection、case 集合在每组对照中保持一致。指标定义同基线报告。
+
+## 实验集
+
+- 语义题（既有 golden set，27 条）：`experiments/retrieval_eval_cases.json`
+- 词法题（本次新增，8 条）：`experiments/retrieval_eval_cases_lexical.json`
+  - 设计原则：查询围绕语料中**真实存在、且只属于一个文件**的精确符号
+    （如 `configure_optimizers`、`Modelfile`、`@kernel_function`、`gradient_checkpointing`），
+    且**不点名所属库**，模拟"看到一个符号、去查它出自哪份文档"的真实场景。
+  - 反作弊纪律：case 在**未观察任何方法结果前**写定；不为让 hybrid 胜出而挑题或改题。
+
+## 汇总结果
+
+| 配置 | 全量 27 条 MRR | lexical 8 条 MRR |
+|---|---:|---:|
+| similarity（dense，基线） | **0.901** | 0.525 |
+| hybrid 0.5/0.5（默认分词器） | 0.827 | 0.250 |
+| hybrid 0.3/0.7（默认分词器） | 0.895 | 0.525 |
+| hybrid 0.5/0.5（代码分词器） | 0.865 | 0.500 |
+| hybrid 0.3/0.7（代码分词器） | 0.873 | **0.562** |
+
+全量集 source_hit_rate：similarity 1.000；所有 hybrid 配置 0.963（多挂 1 个 case）。
+
+## 根因诊断：默认分词器废掉了 BM25
+
+首轮 hybrid 在 lexical 子集上也输（甚至更差），不符合预期。逐条排查 BM25 单独召回，
+发现 BM25 对代码符号查询**完全召不回**（rank=None）。根因有二：
+
+1. **查询侧反引号**：`` `Modelfile` `` 被当成一个带反引号的 token，匹配不上。
+2. **文档侧符号粘标点**：`configure_optimizers` 等只出现在代码块内
+   （如 `def configure_optimizers(self):`），默认分词器按空格切得到 `configure_optimizers(self):`，
+   与纯 token 对不上。`Modelfile` 能召回，正因它在 ollama README **正文**里以独立单词出现。
+
+换上 `code_aware_tokenize`（按非字母数字切 + 小写）后，BM25 单独召回：
+
+| 符号 | 修复前 | 修复后 |
+|---|---|---|
+| `configure_optimizers` | None | rank 2 |
+| `Modelfile` | None | rank 1 |
+| `kernel_function` | None | rank 1 |
+| `gradient_checkpointing` | None | rank 2 |
+
+## 结论
+
+1. **dense 在全量集上全程领先**：没有任何 hybrid 配置超过基线 MRR 0.901。
+   本语料是英文开发文档/README，稠密 embedding 已很强（对子词也有语义覆盖），
+   等权重 BM25 反而引入词法噪音、稀释好的语义排序。
+2. **分词器修复是真实且必要的**：默认分词器下 BM25 对代码符号召回为 0；
+   代码感知分词器让其恢复到 top-2，是 hybrid 路径能正常工作的前提。
+3. **hybrid 仅在 lexical 子集 + 0.3/0.7 + 代码分词器时微胜 dense**（0.562 vs 0.525），
+   且需偏向 dense 的权重；这是其唯一胜出场景。
+4. **决策**：默认保持 `similarity`；保留 `hybrid` + 代码分词器为 opt-in，
+   面向词法/精确符号密集的场景。负结果（hybrid 在通用语义检索上不及 dense）如实保留。
+
+## 已知局限 / 后续
+
+- lexical 子集仅 8 条，统计意义有限；指标为文件级，测不到 chunk 级精确改善。
+- 真正利好 BM25 的场景（罕见 ID、精确报错串、非英文、embedding 弱的领域）本语料覆盖不足。
+- candidate_k、camelCase 进一步拆分等未系统性扫描。
+- 若未来语料规模或类型变化，应重跑本对照再决定默认策略。

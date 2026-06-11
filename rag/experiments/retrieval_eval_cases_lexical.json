@@ -1,0 +1,42 @@
+[
+  {
+    "id": "lex_configure_optimizers",
+    "question": "What is the `configure_optimizers` method used for?",
+    "expected_source_contains": ["06-pytorch-lightning-README.md"]
+  },
+  {
+    "id": "lex_prepare_model_for_kbit_training",
+    "question": "When should you call `prepare_model_for_kbit_training`?",
+    "expected_source_contains": ["peft__hugging-face-peft__quantization.md"]
+  },
+  {
+    "id": "lex_modelfile",
+    "question": "What is a `Modelfile` and what does it define?",
+    "expected_source_contains": ["09-ollama-README.md"]
+  },
+  {
+    "id": "lex_diffusion_pipeline",
+    "question": "How do you load a `DiffusionPipeline`?",
+    "expected_source_contains": ["10-diffusers-README.md"]
+  },
+  {
+    "id": "lex_kernel_function_decorator",
+    "question": "What does the `@kernel_function` decorator do?",
+    "expected_source_contains": ["aiapp-10-semantic-kernel-readme.md"]
+  },
+  {
+    "id": "lex_gradient_checkpointing",
+    "question": "How do you enable `gradient_checkpointing` during training?",
+    "expected_source_contains": ["08-fastchat-README.md"]
+  },
+  {
+    "id": "lex_chat_prompt_template",
+    "question": "How is `ChatPromptTemplate` used to build prompts?",
+    "expected_source_contains": ["aiapp-02-langserve-readme.md"]
+  },
+  {
+    "id": "lex_sft_trainer",
+    "question": "What is `SFTTrainer` used for?",
+    "expected_source_contains": ["peft__hugging-face-peft__lora.md"]
+  }
+]

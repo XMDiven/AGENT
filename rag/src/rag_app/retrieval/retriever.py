@@ -1,3 +1,4 @@
+import re
 from typing import Any, Literal, cast
 
 from langchain_qdrant import QdrantVectorStore
@@ -56,9 +57,26 @@ def load_corpus_documents() -> tuple[Document , ...]:
 
 
 
+_CODE_TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
+
+
+def code_aware_tokenize(text: str) -> list[str]:
+    """Split on any non-alphanumeric char and lowercase.
+
+    The default BM25 tokenizer only splits on whitespace, so code symbols
+    glued to punctuation (e.g. ``configure_optimizers(self):`` or
+    ``@kernel_function``) never match a bare query token. Splitting on
+    non-alphanumerics makes lexical matching work on code/docs corpora.
+    """
+    return [token.lower() for token in _CODE_TOKEN_RE.findall(text)]
+
+
 @lru_cache(maxsize=4)
 def _get_bm25_retriever(candidate_k: int) -> BM25Retriever:
-    bm25 = BM25Retriever.from_documents(list(load_corpus_documents()))
+    bm25 = BM25Retriever.from_documents(
+        list(load_corpus_documents()),
+        preprocess_func=code_aware_tokenize,
+    )
     bm25.k = candidate_k
     return bm25
 

@@ -179,8 +179,9 @@ def run_evaluation(
     search_type: RetrievalSearchType | None = None,
     fetch_k: int | None = None,
     lambda_mult: float | None = None,
+    cases_path: Path | None = None,
 ) -> dict[str, Any]:
-    cases = load_case()
+    cases = load_case(cases_path) if cases_path is not None else load_case()
     effective_search_type, search_kwargs = build_search_kwargs(
         top_k=top_k,
         search_type=search_type,
@@ -314,6 +315,12 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="MMR relevance/diversity balance.",
     )
+    parser.add_argument(
+        "--cases-path",
+        type=str,
+        default=None,
+        help="Path to an eval cases JSON. Defaults to the standard golden set.",
+    )
 
     return parser.parse_args()
 
@@ -325,6 +332,7 @@ def main() -> None:
         search_type=args.search_type,
         fetch_k=args.fetch_k,
         lambda_mult=args.lambda_mult,
+        cases_path=Path(args.cases_path) if args.cases_path else None,
     )
 
     if summary["passed"] != summary["total"]:

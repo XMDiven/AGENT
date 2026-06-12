@@ -32,6 +32,11 @@ rag/.env
 *.swp
 *.swo
 
+# 本地助手配置与个人材料
+AGENTS.md
+CLAUDE.md
+agent_ai_app_interview_prep.html
+
 # 测试
 .pytest_cache/
 .coverage

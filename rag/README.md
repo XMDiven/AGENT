@@ -255,7 +255,7 @@ curl -X POST http://127.0.0.1:8002/documents/ingest \
 
 ```json
 {
-  "path": "/Users/mdiven/Code/Projects/AGENT/rag/data/raw/example.pdf",
+  "path": "/Users/mdiven/Code/Projects/rag-agent-platform/rag/data/raw/example.pdf",
   "document_count": 100,
   "chunk_count": 452,
   "stored_count": 452
@@ -709,7 +709,7 @@ Example ingest response:
 
 ```json
 {
-  "path": "/Users/mdiven/Code/Projects/AGENT/rag/data/raw/example.pdf",
+  "path": "/Users/mdiven/Code/Projects/rag-agent-platform/rag/data/raw/example.pdf",
   "document_count": 100,
   "chunk_count": 452,
   "stored_count": 452

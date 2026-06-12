@@ -6,7 +6,7 @@ projects.
 ## Run Metadata
 
 - Run time: 2026-06-04 13:14:25 CST
-- Repository: `/Users/mdiven/Code/Projects/AGENT`
+- Repository: `/Users/mdiven/Code/Projects/rag-agent-platform`
 - Conda environment: `AI_DEV`
 - RAG service: `http://127.0.0.1:8002`
 - Agent service: `http://127.0.0.1:8001`
@@ -22,7 +22,7 @@ The current local convention is: Agent API uses port `8001`; RAG API uses port
 The live stack must be ready before running these commands:
 
 ```bash
-cd /Users/mdiven/Code/Projects/AGENT/rag
+cd /Users/mdiven/Code/Projects/rag-agent-platform/rag
 docker compose up -d qdrant
 conda run -n AI_DEV python -m rag_app.scripts.reset_index
 conda run -n AI_DEV python -m rag_app.scripts.build_index
@@ -31,15 +31,15 @@ conda run -n AI_DEV python -m rag_app.scripts.build_index
 Start the RAG API:
 
 ```bash
-cd /Users/mdiven/Code/Projects/AGENT/rag
+cd /Users/mdiven/Code/Projects/rag-agent-platform/rag
 conda run -n AI_DEV uvicorn rag_app.app.main:app --host 127.0.0.1 --port 8002
 ```
 
 Start the Agent API:
 
 ```bash
-cd /Users/mdiven/Code/Projects/AGENT/agent
-PYTHONPATH=/Users/mdiven/Code/Projects/AGENT/agent/src:/Users/mdiven/Code/Projects/AGENT/rag/src \
+cd /Users/mdiven/Code/Projects/rag-agent-platform/agent
+PYTHONPATH=/Users/mdiven/Code/Projects/rag-agent-platform/agent/src:/Users/mdiven/Code/Projects/rag-agent-platform/rag/src \
   conda run -n AI_DEV uvicorn agent_app.app.main:app --host 127.0.0.1 --port 8001
 ```
 
@@ -65,7 +65,7 @@ Observed responses:
 Command:
 
 ```bash
-cd /Users/mdiven/Code/Projects/AGENT
+cd /Users/mdiven/Code/Projects/rag-agent-platform
 curl -sS -X POST http://127.0.0.1:8002/documents/upload \
   -F "file=@rag/data/raw/qdrant-docs.md;type=text/markdown"
 ```
@@ -94,7 +94,7 @@ Observed response:
 
 ```json
 {
-  "path": "/Users/mdiven/Code/Projects/AGENT/rag/data/raw/qdrant-docs.md",
+  "path": "/Users/mdiven/Code/Projects/rag-agent-platform/rag/data/raw/qdrant-docs.md",
   "document_count": 1,
   "chunk_count": 1,
   "stored_count": 1

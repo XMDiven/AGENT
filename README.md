@@ -1,4 +1,4 @@
-# AGENT
+# rag-agent-platform
 
 这是一个从 RAG 知识库问答逐步演进到轻量 Agent 编排的 AI 应用工程项目。
 

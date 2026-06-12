@@ -37,7 +37,7 @@ conda run -n AI_DEV python -c "from pypdf import PdfReader; print(len(PdfReader(
 最近一次完整 `build_index` 运行中，该 PDF 的索引输出为：
 
 ```text
-indexed /Users/mdiven/Code/Projects/AGENT/rag/data/raw/gpt4_technical_report.pdf documents=100 chunks=452 stored=452
+indexed /Users/mdiven/Code/Projects/rag-agent-platform/rag/data/raw/gpt4_technical_report.pdf documents=100 chunks=452 stored=452
 ```
 
 字段含义：

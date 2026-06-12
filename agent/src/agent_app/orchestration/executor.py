@@ -14,6 +14,33 @@ class ToolResult:
     output: Any
     attempts: list[dict[str, Any]]
 
+def successful_tool_result(tool_name: str, output: Any) -> ToolResult:
+    return ToolResult(
+        tool_name=tool_name,
+        status="success",
+        output=output,
+        attempts=[{"attempt": 1, "status": "success"}],
+    )
+
+
+def failed_tool_result(tool_name: str, error: Exception) -> ToolResult:
+    return ToolResult(
+        tool_name=tool_name,
+        status="failed",
+        output={
+            "error_type": type(error).__name__,
+            "error": str(error),
+        },
+        attempts=[
+            {
+                "attempt": 1,
+                "status": "failed",
+                "error_type": type(error).__name__,
+                "error": str(error),
+            }
+        ],
+    )
+
 
 def normalize_output(output: Any) -> dict[str, Any]:
     if isinstance(output, dict):
@@ -90,6 +117,8 @@ def run_decomposed_retrieval(question: str) -> dict[str, Any]:
         "reason": decomposition.get("reason"),
         "decomposition_strategy": decomposition.get("decomposition_strategy"),
     }
+
+
 
 
 def execute_plan(

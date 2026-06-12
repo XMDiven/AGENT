@@ -8,7 +8,7 @@
 
 ## 运行命令
 
-从 `/Users/mdiven/Code/Projects/AGENT/rag` 目录运行：
+从 `/Users/mdiven/Code/Projects/rag-agent-platform/rag` 目录运行：
 
 ```bash
 conda run -n AI_DEV python -m rag_app.scripts.evaluate_retrieval

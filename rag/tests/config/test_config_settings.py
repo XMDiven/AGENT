@@ -34,10 +34,18 @@ def test_settings_reads_environment_variables(monkeypatch) -> None:
     assert settings.qdrant_collection == "documents"
 
 
+def test_settings_reads_hybrid_retrieval_search_type(monkeypatch) -> None:
+    monkeypatch.setenv("RETRIEVAL_SEARCH_TYPE", "hybrid")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.retrieval_search_type == "hybrid"
+
+
 def test_settings_rejects_unsupported_retrieval_search_type(
     monkeypatch,
 ) -> None:
-    monkeypatch.setenv("RETRIEVAL_SEARCH_TYPE", "hybrid")
+    monkeypatch.setenv("RETRIEVAL_SEARCH_TYPE", "rerank")
 
     with pytest.raises(ValidationError):
         Settings(_env_file=None)
